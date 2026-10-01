@@ -685,11 +685,7 @@ async fn test_nat_type_() -> ResultType<bool> {
 
 pub async fn get_rendezvous_server(ms_timeout: u64) -> (String, Vec<String>, bool) {
     let _ = ms_timeout;
-    (
-        "api.edgedesk.edgealphix.com:21116".to_owned(),
-        Vec::new(),
-        true,
-    )
+    ("api.edgedesk.edgealphix.com:21116".to_owned(), Vec::new(), true)
 }
 
 #[inline]
@@ -2587,7 +2583,7 @@ mod tests {
     #[test]
     fn test_is_public() {
         assert!(!is_public("https://api.edgedesk.edgealphix.com"));
-    }
+}
 
     #[test]
     fn test_should_use_tcp_proxy_for_api_url() {

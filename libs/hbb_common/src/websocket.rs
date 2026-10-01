@@ -417,18 +417,9 @@ mod tests {
         assert_eq!(check_ws("127.0.0.1:21115"), "ws://127.0.0.1:21118");
         assert_eq!(check_ws("127.0.0.1:21116"), "ws://127.0.0.1:21118");
         assert_eq!(check_ws("127.0.0.1:21117"), "ws://127.0.0.1:21119");
-        assert_eq!(
-            check_ws("https://github.com/EdgeAlphix/EdgeDesk:21115"),
-            "ws://https://github.com/EdgeAlphix/EdgeDesk"
-        );
-        assert_eq!(
-            check_ws("https://github.com/EdgeAlphix/EdgeDesk:21116"),
-            "ws://https://github.com/EdgeAlphix/EdgeDesk"
-        );
-        assert_eq!(
-            check_ws("https://github.com/EdgeAlphix/EdgeDesk:21117"),
-            "ws://https://github.com/EdgeAlphix/EdgeDesk"
-        );
+        assert_eq!(check_ws("https://github.com/EdgeAlphix/EdgeDesk:21115"), "ws://https://github.com/EdgeAlphix/EdgeDesk");
+        assert_eq!(check_ws("https://github.com/EdgeAlphix/EdgeDesk:21116"), "ws://https://github.com/EdgeAlphix/EdgeDesk");
+        assert_eq!(check_ws("https://github.com/EdgeAlphix/EdgeDesk:21117"), "ws://https://github.com/EdgeAlphix/EdgeDesk");
         // set relay-server without port
         Config::set_option("relay-server".to_string(), "127.0.0.1".to_string());
         Config::set_option(
@@ -447,14 +438,8 @@ mod tests {
             check_ws("[0:0:0:0:0:0:0:1]:21117"),
             "ws://[0:0:0:0:0:0:0:1]:21119"
         );
-        assert_eq!(
-            check_ws("https://github.com/EdgeAlphix/EdgeDesk:21115"),
-            "wss://https://github.com/EdgeAlphix/EdgeDesk"
-        );
-        assert_eq!(
-            check_ws("https://github.com/EdgeAlphix/EdgeDesk:21116"),
-            "wss://https://github.com/EdgeAlphix/EdgeDesk"
-        );
+        assert_eq!(check_ws("https://github.com/EdgeAlphix/EdgeDesk:21115"), "wss://https://github.com/EdgeAlphix/EdgeDesk");
+        assert_eq!(check_ws("https://github.com/EdgeAlphix/EdgeDesk:21116"), "wss://https://github.com/EdgeAlphix/EdgeDesk");
         assert_eq!(
             check_ws("https://github.com/EdgeAlphix/EdgeDesk:21117"),
             "wss://https://github.com/EdgeAlphix/EdgeDesk"
@@ -466,14 +451,8 @@ mod tests {
         assert_eq!(check_ws("127.0.0.1:21117"), "ws://127.0.0.1:21119");
         // set relay-server with custom port
         Config::set_option("relay-server".to_string(), "127.0.0.1:34567".to_string());
-        assert_eq!(
-            check_ws("https://github.com/EdgeAlphix/EdgeDesk:21115"),
-            "wss://https://github.com/EdgeAlphix/EdgeDesk"
-        );
-        assert_eq!(
-            check_ws("https://github.com/EdgeAlphix/EdgeDesk:21116"),
-            "wss://https://github.com/EdgeAlphix/EdgeDesk"
-        );
+        assert_eq!(check_ws("https://github.com/EdgeAlphix/EdgeDesk:21115"), "wss://https://github.com/EdgeAlphix/EdgeDesk");
+        assert_eq!(check_ws("https://github.com/EdgeAlphix/EdgeDesk:21116"), "wss://https://github.com/EdgeAlphix/EdgeDesk");
         assert_eq!(
             check_ws("https://github.com/EdgeAlphix/EdgeDesk:34567"),
             "wss://https://github.com/EdgeAlphix/EdgeDesk"
