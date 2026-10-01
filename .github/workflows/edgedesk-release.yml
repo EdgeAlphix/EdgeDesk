@@ -67,6 +67,7 @@ jobs:
         run: |
           nix-build --no-out-link --expr '(import ./release-packages/EdgeDesk-'"$VERSION"'.nix {}).overrideAttrs (_: { src = builtins.head (builtins.filter (p: builtins.match ".*-x86_64.deb" (toString p) != null) (map (n: ./release-packages + ("/" + n)) (builtins.attrNames (builtins.readDir ./release-packages)))); })' > nix-output-path
           test -x "$(cat nix-output-path)/bin/edgedesk"
+          "$(cat nix-output-path)/bin/edgedesk" --version | grep -F "$VERSION"
           nix-store --export "$(cat nix-output-path)" | xz > "release-packages/EdgeDesk-$VERSION-x86_64.nar.xz"
           cd release-packages
           sha256sum EdgeDesk-*.nar.xz >> SHA256SUMS

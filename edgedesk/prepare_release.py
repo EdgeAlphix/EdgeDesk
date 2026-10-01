@@ -64,7 +64,8 @@ with tempfile.TemporaryDirectory(prefix='edgedesk-release-') as directory:
     run('git','config','user.name','EdgeDesk Release Bot',cwd=dst)
     run('git','config','user.email','release@edgealphix.com',cwd=dst)
     # Source-only commits inherit existing workflows from main and require no workflow privilege.
-    run('git','fetch',remote,'main','--depth','1',cwd=dst)
+    parent = run('git','rev-parse','HEAD',capture=True)
+    run('git','fetch',remote,parent,'--depth','1',cwd=dst)
     run('git','reset','--soft','FETCH_HEAD',cwd=dst)
     run('git','add','-A',cwd=dst)
     run('git','add','-f','edgedesk/assets','flutter/assets',cwd=dst)
