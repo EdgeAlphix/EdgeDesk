@@ -131,6 +131,22 @@ shutil.copy(root / 'edgedesk/assets/wordmark.png', root / 'flutter/assets/logo.p
 shutil.copy(root / 'edgedesk/assets/icon.png', root / 'flutter/assets/icon.png')
 (root / 'flutter/assets/icon.svg').write_text(svg)
 img.save(root / 'flutter/macos/Runner/AppIcon.icns', format='ICNS')
+# Adaptive icons use a transparent foreground inside Android's circular safe zone.
+import math
+foreground = source.convert('RGBA')
+foreground.putalpha(source.convert('L').point(lambda value: 255 if value < 200 else 0))
+cx, cy = foreground.width / 2, foreground.height / 2
+radius = max(math.hypot(x - cx, y - cy) for y in range(foreground.height) for x in range(foreground.width) if foreground.getpixel((x, y))[3])
+for p in (root / 'flutter/android/app/src/main/res').rglob('ic_launcher_foreground.png'):
+    with Image.open(p) as existing:
+        size = existing.width
+    scale = size * 32 / 108 / radius
+    artwork = foreground.resize((round(foreground.width * scale), round(foreground.height * scale)), Image.Resampling.LANCZOS)
+    canvas = Image.new('RGBA', (size, size))
+    canvas.paste(artwork, ((size - artwork.width) // 2, (size - artwork.height) // 2))
+    canvas.save(p)
+icon(root / 'flutter/android/app/src/main/res/drawable/edgedesk_logo.png', 128)
+(root / 'flutter/android/app/src/main/res/drawable/floating_window.xml').write_text('<?xml version="1.0" encoding="utf-8"?>\n<bitmap xmlns:android="http://schemas.android.com/apk/res/android" android:src="@drawable/edgedesk_logo" android:gravity="fill" />\n')
 for base in ('flutter/android', 'flutter/ios', 'flutter/macos'):
     for p in (root / base).rglob('*'):
         if p.is_file() and p.suffix in {'.xml', '.plist'}:

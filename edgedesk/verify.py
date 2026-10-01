@@ -58,4 +58,13 @@ assert (root / 'flutter/macos/Runner/AppIcon.icns').stat().st_size > 1000
 assert 'GNU AFFERO GENERAL PUBLIC LICENSE' in (root / 'res/msi/Package/License.rtf').read_text()
 assert '--app-name EdgeDesk --manufacturer "International Computing Group, LLC"' in (root / '.github/workflows/edgedesk-build.yml').read_text()
 assert 'const APP_PREFIX: &str = "edgedesk";' in (root / 'libs/portable/src/main.rs').read_text()
+from PIL import Image
+import math
+foreground_icons = list((root / 'flutter/android/app/src/main/res').rglob('ic_launcher_foreground.png'))
+assert foreground_icons
+for p in foreground_icons:
+    im = Image.open(p)
+    assert im.mode == 'RGBA'
+    assert all(math.hypot(x - im.width / 2, y - im.height / 2) <= im.width * 33 / 108 for y in range(im.height) for x in range(im.width) if im.getpixel((x, y))[3] > 128), f'Adaptive icon clipped: {p}'
+assert '@drawable/edgedesk_logo' in (root / 'flutter/android/app/src/main/res/drawable/floating_window.xml').read_text()
 print('EdgeDesk policy, destinations, identifiers and license checks passed')
