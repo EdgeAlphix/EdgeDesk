@@ -8,7 +8,9 @@ The released upstream workflows provide platform toolchains and native dependenc
 
 Android secrets: `ANDROID_SIGNING_KEY` (base64 keystore), `ANDROID_ALIAS`, `ANDROID_KEY_STORE_PASSWORD`, `ANDROID_KEY_PASSWORD`. Keep the same key for updates.
 
-macOS secrets: `MACOS_P12_BASE64`, `MACOS_P12_PASSWORD`, `MACOS_CODESIGN_IDENTITY`, `MACOS_NOTARIZE_JSON`. Without them, unsigned macOS app archives are still built. The iOS archive requires your own Apple provisioning/signing for distribution; this repository does not claim an unsigned IPA is installable on a standard iPhone.
+Mac builds use a persistent development signing identity through `EDGEDESK_MACOS_P12` and `EDGEDESK_MACOS_P12_PASSWORD`. Keep the same identity for updates so macOS permissions continue to match. This is not Apple notarization.
+
+Optional Apple macOS signing secrets: `MACOS_P12_BASE64`, `MACOS_P12_PASSWORD`, `MACOS_CODESIGN_IDENTITY`, `MACOS_NOTARIZE_JSON`. Without them, unsigned macOS app archives are still built. The iOS archive requires your own Apple provisioning/signing for distribution; this repository does not claim an unsigned IPA is installable on a standard iPhone.
 
 Windows signing is optional through the inherited `SIGN_BASE_URL` and `SIGN_SECRET_KEY` integration. No signing credential is included in source.
 
@@ -21,3 +23,5 @@ python3 edgedesk/workflows.py
 python3 edgedesk/verify.py
 ```
 
+
+Linux native packages require glibc 2.31 or newer (Ubuntu 20.04 or later).

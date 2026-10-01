@@ -88,6 +88,8 @@ Widget edgeDeskAbout(BuildContext context,
 }
 '''
 common.write_text(data)
+p = root / 'flutter/lib/desktop/pages/desktop_home_page.dart'
+p.write_text(p.read_text().replace('      shouldBeBlocked(_block, canBeBlocked);', '      shouldBeBlocked(_block, canBeBlocked);\n      if (isMacOS) setState(() {});'))
 p = root / 'flutter/lib/desktop/widgets/tabbar_widget.dart'
 p.write_text(p.read_text().replace('"RustDesk",', '"EdgeDesk",'))
 cfg = root / 'libs/hbb_common/src/config.rs'
@@ -248,6 +250,7 @@ p = root / 'flutter/linux/CMakeLists.txt'
 p.write_text(p.read_text().replace('set(BINARY_NAME "rustdesk")', 'set(BINARY_NAME "edgedesk")'))
 p = root / 'build.py'
 data = p.read_text().replace('Package: rustdesk', 'Package: edgedesk')
+data = data.replace('Depends: libgtk-', 'Depends: libc6 (>= 2.31), libgtk-')
 for old, new in [('usr/share/rustdesk', 'usr/share/edgedesk'), ('usr/bin/rustdesk', 'usr/bin/edgedesk'), ('etc/rustdesk', 'etc/edgedesk'), ('pam.d/rustdesk', 'pam.d/edgedesk'), ('apps/rustdesk', 'apps/edgedesk'), ('applications/rustdesk', 'applications/edgedesk'), ('res/rustdesk.', 'res/edgedesk.'), ('res/rustdesk-link.', 'res/edgedesk-link.')]:
     data = data.replace(old, new)
 p.write_text(data)

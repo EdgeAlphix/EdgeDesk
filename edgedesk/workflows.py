@@ -65,18 +65,22 @@ for step in universal['steps']:
         values = step.get('with',{})
         if 'name' in values:
             values['name'] = values['name'].replace('${{ matrix.job.arch }}','universal')
-checks = {'build-for-windows-flutter': {'name': 'Verify Windows executable starts', 'shell': 'pwsh', 'run': '$version = & ./rustdesk/rustdesk.exe --version\nif ($LASTEXITCODE -ne 0 -or "$version" -notmatch [regex]::Escape("${{ env.VERSION }}")) { throw "EdgeDesk executable failed to report its version: $version" }\n'}, 'build-for-macOS': {'name': 'Verify macOS application identity and executable', 'shell': 'bash', 'run': 'app=flutter/build/macos/Build/Products/Release/EdgeDesk.app\ntest "$(/usr/libexec/PlistBuddy -c \'Print CFBundleIdentifier\' "$app/Contents/Info.plist")" = com.edgealphix.desk\n"$app/Contents/MacOS/EdgeDesk" --version | grep -F "${{ env.VERSION }}"\n'}}
+windows_check = {"name": "Verify Windows executable starts", "shell": "pwsh", "run": '$process = Start-Process -FilePath (Resolve-Path ./rustdesk/rustdesk.exe) -ArgumentList "--version" -Wait -PassThru -RedirectStandardOutput version.txt -RedirectStandardError version-error.txt\n$version = Get-Content version.txt -Raw\nif ($process.ExitCode -ne 0 -or "$version" -notmatch [regex]::Escape("${{ env.VERSION }}")) { Get-Content version-error.txt; throw "EdgeDesk executable failed to report its version: $version" }\n'}
+checks = {'build-for-windows-flutter': windows_check, 'build-for-macOS': {'name': 'Verify macOS application identity and executable', 'shell': 'bash', 'run': 'app=flutter/build/macos/Build/Products/Release/EdgeDesk.app\ntest "$(/usr/libexec/PlistBuddy -c \'Print CFBundleIdentifier\' "$app/Contents/Info.plist")" = com.edgealphix.desk\n"$app/Contents/MacOS/EdgeDesk" --version | grep -F "${{ env.VERSION }}"\n'}}
 for name, check in checks.items():
     steps = original["jobs"][name]["steps"]
     index = next(i for i, step in enumerate(steps) if step.get("name") == "Build rustdesk")
     steps.insert(index + 1, check)
+for job in original['jobs']['build-rustdesk-linux']['strategy']['matrix']['job']:
+    job['distro'] = 'ubuntu20.04'
 linux_build = next(step for step in original["jobs"]["build-rustdesk-linux"]["steps"] if step.get("name") == "Build rustdesk")
+linux_build["with"]["run"] = linux_build["with"]["run"].replace("for name in rustdesk*??.rpm", "for name in edgedesk*??.rpm")
 linux_build["with"]["run"] = linux_build["with"]["run"].replace("python3 ./build.py --flutter --skip-cargo", 'python3 ./build.py --flutter --skip-cargo\n          binary=$(find /workspace/flutter/build/linux -path "*/release/bundle/edgedesk" -type f -print -quit)\n          test -n "$binary"\n          "$binary" --version | grep -F "${{ env.VERSION }}"')
 mac_steps = original["jobs"]["build-for-macOS"]["steps"]
 mac_check = next(step for step in mac_steps if step.get("name") == "Verify macOS application identity and executable")
 mac_steps.remove(mac_check)
 index = next(i for i, step in enumerate(mac_steps) if step.get("name") == "Build rustdesk")
-mac_steps.insert(index + 1, {'name': 'Sign development application consistently', 'shell': 'bash', 'run': 'codesign --force --deep --sign - --entitlements flutter/macos/Runner/Release.entitlements flutter/build/macos/Build/Products/Release/EdgeDesk.app\ncodesign --verify --deep --strict flutter/build/macos/Build/Products/Release/EdgeDesk.app\n'})
+mac_steps.insert(index + 1, {'name': 'Sign development application consistently', 'shell': 'bash', 'env': {'EDGEDESK_MACOS_P12': '${{ secrets.EDGEDESK_MACOS_P12 }}', 'EDGEDESK_MACOS_P12_PASSWORD': '${{ secrets.EDGEDESK_MACOS_P12_PASSWORD }}'}, 'run': 'bash edgedesk/sign_macos.sh flutter/build/macos/Build/Products/Release/EdgeDesk.app\n'})
 index = next(i for i, step in enumerate(mac_steps) if step.get("name") == "Codesign app and create signed dmg")
 mac_steps.insert(index + 1, mac_check)
 # Archive .app with symlinks preserved; .dmg remains available too.

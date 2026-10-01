@@ -67,6 +67,14 @@ assert 'com.rustdesk.RustDesk' not in (root / '.github/workflows/edgedesk-build.
 build_workflow = (root / '.github/workflows/edgedesk-build.yml').read_text()
 assert 'ubuntu:24.04 bash -euo pipefail' in build_workflow
 assert 'flatpak flatpak-builder appstream-compose' in build_workflow
+assert 'for name in rustdesk*??.rpm' not in build_workflow
+assert 'distro: ubuntu18.04' not in build_workflow
+assert 'distro: ubuntu20.04' in build_workflow
+assert 'Start-Process -FilePath' in build_workflow and '-Wait -PassThru' in build_workflow
+assert 'bash edgedesk/sign_macos.sh' in build_workflow
+assert 'EDGEDESK_MACOS_P12_PASSWORD' in build_workflow
+assert 'Depends: libc6 (>= 2.31)' in (root / 'build.py').read_text()
+assert 'if (isMacOS) setState(() {});' in (root / 'flutter/lib/desktop/pages/desktop_home_page.dart').read_text()
 
 # Native service management and package layouts use the same executable name.
 assert 'set(BINARY_NAME "edgedesk")' in (root / 'flutter/linux/CMakeLists.txt').read_text()

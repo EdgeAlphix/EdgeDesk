@@ -247,8 +247,9 @@ jobs:
     - name: Verify Windows executable starts
       shell: pwsh
       run: |
-        $version = & ./rustdesk/rustdesk.exe --version
-        if ($LASTEXITCODE -ne 0 -or "$version" -notmatch [regex]::Escape("${{ env.VERSION }}")) { throw "EdgeDesk executable failed to report its version: $version" }
+        $process = Start-Process -FilePath (Resolve-Path ./rustdesk/rustdesk.exe) -ArgumentList "--version" -Wait -PassThru -RedirectStandardOutput version.txt -RedirectStandardError version-error.txt
+        $version = Get-Content version.txt -Raw
+        if ($process.ExitCode -ne 0 -or "$version" -notmatch [regex]::Escape("${{ env.VERSION }}")) { Get-Content version-error.txt; throw "EdgeDesk executable failed to report its version: $version" }
     - name: find Runner.res
       continue-on-error: true
       shell: bash
@@ -313,7 +314,7 @@ jobs:
     - name: Collect Publish Release
       uses: actions/upload-artifact@v4
       with:
-        name: package-build-for-windows-flutter-23-${{ matrix.job.arch }}
+        name: package-build-for-windows-flutter-24-${{ matrix.job.arch }}
         path: |
           ./SignOutput/rustdesk-*.msi
           ./SignOutput/rustdesk-*.exe
@@ -571,9 +572,11 @@ jobs:
         ./build.py --flutter --hwcodec --unix-file-copy-paste ${{ matrix.job.extra-build-args }}
     - name: Sign development application consistently
       shell: bash
+      env:
+        EDGEDESK_MACOS_P12: ${{ secrets.EDGEDESK_MACOS_P12 }}
+        EDGEDESK_MACOS_P12_PASSWORD: ${{ secrets.EDGEDESK_MACOS_P12_PASSWORD }}
       run: |
-        codesign --force --deep --sign - --entitlements flutter/macos/Runner/Release.entitlements flutter/build/macos/Build/Products/Release/EdgeDesk.app
-        codesign --verify --deep --strict flutter/build/macos/Build/Products/Release/EdgeDesk.app
+        bash edgedesk/sign_macos.sh flutter/build/macos/Build/Products/Release/EdgeDesk.app
     - name: create unsigned dmg
       if: env.UPLOAD_ARTIFACT == 'true'
       run: |
@@ -619,7 +622,7 @@ jobs:
     - name: Collect Publish DMG package
       uses: actions/upload-artifact@v4
       with:
-        name: package-build-for-macOS-22-${{ matrix.job.arch }}
+        name: package-build-for-macOS-23-${{ matrix.job.arch }}
         path: |
           rustdesk*-${{ matrix.job.arch }}.dmg
         if-no-files-found: error
@@ -883,7 +886,7 @@ jobs:
     - name: Collect Publish signed apk package
       uses: actions/upload-artifact@v4
       with:
-        name: package-build-rustdesk-android-18-${{ matrix.job.arch }}
+        name: package-build-rustdesk-android-19-${{ matrix.job.arch }}
         path: |
           ${{steps.sign-rustdesk.outputs.signedReleaseFile}}
         if-no-files-found: error
@@ -891,7 +894,7 @@ jobs:
     - name: Collect Publish unsigned apk package
       uses: actions/upload-artifact@v4
       with:
-        name: package-build-rustdesk-android-19-${{ matrix.job.arch }}
+        name: package-build-rustdesk-android-20-${{ matrix.job.arch }}
         path: |
           signed-apk/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.apk
         if-no-files-found: error
@@ -1046,7 +1049,7 @@ jobs:
     - name: Collect Publish signed apk package
       uses: actions/upload-artifact@v4
       with:
-        name: package-build-rustdesk-android-universal-15-universal
+        name: package-build-rustdesk-android-universal-16-universal
         path: |
           ${{steps.sign-rustdesk.outputs.signedReleaseFile}}
         if-no-files-found: error
@@ -1054,7 +1057,7 @@ jobs:
     - name: Collect Publish unsigned apk package
       uses: actions/upload-artifact@v4
       with:
-        name: package-build-rustdesk-android-universal-16-universal
+        name: package-build-rustdesk-android-universal-17-universal
         path: |
           signed-apk/rustdesk-${{ env.VERSION }}-universal${{ env.suffix }}.apk
         if-no-files-found: error
@@ -1071,13 +1074,13 @@ jobs:
         job:
         - arch: x86_64
           target: x86_64-unknown-linux-gnu
-          distro: ubuntu18.04
+          distro: ubuntu20.04
           'on': ubuntu-22.04
           deb_arch: amd64
           vcpkg-triplet: x64-linux
         - arch: aarch64
           target: aarch64-unknown-linux-gnu
-          distro: ubuntu18.04
+          distro: ubuntu20.04
           'on': ubuntu-22.04-arm
           deb_arch: arm64
           vcpkg-triplet: arm64-linux
@@ -1343,7 +1346,7 @@ jobs:
     - name: Collect Publish debian/rpm package
       uses: actions/upload-artifact@v4
       with:
-        name: package-build-rustdesk-linux-13-${{ matrix.job.arch }}
+        name: package-build-rustdesk-linux-14-${{ matrix.job.arch }}
         path: |
           rustdesk-*.deb
           edgedesk-*.rpm
@@ -1372,7 +1375,7 @@ jobs:
     - name: Collect Publish archlinux package
       uses: actions/upload-artifact@v4
       with:
-        name: package-build-rustdesk-linux-17-${{ matrix.job.arch }}
+        name: package-build-rustdesk-linux-18-${{ matrix.job.arch }}
         path: |
           res/edgedesk-${{ env.VERSION }}*.zst
         if-no-files-found: error
@@ -1424,7 +1427,7 @@ jobs:
     - name: Collect Publish appimage package
       uses: actions/upload-artifact@v4
       with:
-        name: package-build-appimage-4-${{ matrix.job.arch }}
+        name: package-build-appimage-5-${{ matrix.job.arch }}
         path: |
           ./appimage/edgedesk-${{ env.VERSION }}-*.AppImage
         if-no-files-found: error
@@ -1486,7 +1489,7 @@ jobs:
     - name: Collect Publish flatpak package
       uses: actions/upload-artifact@v4
       with:
-        name: package-build-flatpak-4-${{ matrix.job.arch }}
+        name: package-build-flatpak-5-${{ matrix.job.arch }}
         path: |
           flatpak/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.job.suffix }}.flatpak
         if-no-files-found: error
