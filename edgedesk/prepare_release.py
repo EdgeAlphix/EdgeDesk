@@ -60,6 +60,7 @@ with tempfile.TemporaryDirectory(prefix='edgedesk-release-') as directory:
     run('git','config','user.name','EdgeDesk Release Bot',cwd=dst)
     run('git','config','user.email','release@edgealphix.com',cwd=dst)
     run('git','add','-A',cwd=dst)
+    run('git','add','-f','edgedesk/assets',cwd=dst)
     run('git','commit','-m',f'EdgeDesk {version}: apply managed client overlay',cwd=dst)
     run('git','tag',tag,cwd=dst)
     run('git','remote','set-url','origin',remote,cwd=dst)
