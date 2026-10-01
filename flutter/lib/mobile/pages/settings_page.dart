@@ -951,46 +951,14 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
             tiles: enhancementsTiles,
           ),
         SettingsSection(
-          title: Text(translate("About")),
+          title: const Text('About'),
           tiles: [
-            SettingsTile(title: const Text('Software owner: International Computing Group, LLC\nOperator: EdgeAlphix LLC\nAnaheim, CA 92802\nUnited States'), leading: const Icon(Icons.business)),
-            SettingsTile(title: const Text('Open Source Licenses'), leading: const Icon(Icons.code), onPressed: (context) => showLicensePage(context: context, applicationName: 'EdgeDesk')),
-            SettingsTile(title: const Text('Source and patches (AGPL-3.0)'), leading: const Icon(Icons.source), onPressed: (context) => launchUrlString('https://github.com/EdgeAlphix/EdgeDesk')),
             SettingsTile(
-                onPressed: (context) async {
-                  await launchUrl(Uri.parse(url));
-                },
-                title: Text(translate("Version: ") + version),
-                value: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8),
-                  child: Text('https://github.com/EdgeAlphix/EdgeDesk',
-                      style: TextStyle(
-                        decoration: TextDecoration.underline,
-                      )),
-                ),
-                leading: Icon(Icons.info)),
-            SettingsTile(
-                title: Text(translate("Build Date")),
-                value: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8),
-                  child: Text(_buildDate),
-                ),
-                leading: Icon(Icons.query_builder)),
-            if (isAndroid)
-              SettingsTile(
-                  onPressed: (context) => onCopyFingerprint(_fingerprint),
-                  title: Text(translate("Fingerprint")),
-                  value: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: Text(_fingerprint),
-                  ),
-                  leading: Icon(Icons.fingerprint)),
-            SettingsTile(
-              title: Text(translate("Privacy Statement")),
-              onPressed: (context) =>
-                  launchUrlString('https://github.com/EdgeAlphix/EdgeDesk'),
-              leading: Icon(Icons.privacy_tip),
-            )
+              title: const Text('EdgeDesk'),
+              description: Text('Version $version'),
+              leading: loadIcon(32),
+              onPressed: (context) => showAbout(gFFI.dialogManager),
+            ),
           ],
         ),
       ],
@@ -1096,25 +1064,10 @@ void showThemeSettings(OverlayDialogManager dialogManager) async {
 void showAbout(OverlayDialogManager dialogManager) {
   dialogManager.show((setState, close, context) {
     return CustomAlertDialog(
-      title: Text(translate('About RustDesk')),
-      content: Wrap(direction: Axis.vertical, spacing: 12, children: [
-        Text('Version: $version'),
-        const Text('Software owner: International Computing Group, LLC\nOperator: EdgeAlphix LLC\nAnaheim, CA 92802\nUnited States'),
-        const Text('RustDesk and EdgeDesk modifications: GNU AGPL-3.0'),
-        InkWell(onTap: () => launchUrlString('https://github.com/EdgeAlphix/EdgeDesk'), child: const Text('Source and patches')),
-        InkWell(
-            onTap: () async {
-              const url = 'https://github.com/EdgeAlphix/EdgeDesk';
-              await launchUrl(Uri.parse(url));
-            },
-            child: Padding(
-              padding: EdgeInsets.symmetric(vertical: 8),
-              child: Text('https://github.com/EdgeAlphix/EdgeDesk',
-                  style: TextStyle(
-                    decoration: TextDecoration.underline,
-                  )),
-            )),
-      ]),
+      title: const Text('About EdgeDesk'),
+      content: SingleChildScrollView(
+        child: edgeDeskAbout(context, version: version),
+      ),
       actions: [],
     );
   }, clickMaskDismiss: true, backDismiss: true);

@@ -3744,12 +3744,12 @@ Widget loadPowered(BuildContext context) {
     cursor: SystemMouseCursors.click,
     child: GestureDetector(
       onTap: () {
-        launchUrl(Uri.parse('https://github.com/EdgeAlphix/EdgeDesk'));
+        launchUrl(Uri.parse('https://edgealphix.com'));
       },
       child: Opacity(
           opacity: 0.5,
           child: Text(
-            translate("powered_by_me"),
+            'Powered by EdgeAlphix',
             overflow: TextOverflow.clip,
             style: Theme.of(context)
                 .textTheme
@@ -3815,7 +3815,12 @@ class _LogoState extends State<_Logo> {
           );
           return Container(
             constraints: BoxConstraints(maxWidth: 300, maxHeight: 60),
-            child: image,
+            child: Theme.of(context).brightness == Brightness.dark
+                ? ColorFiltered(
+                    colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                    child: image,
+                  )
+                : image,
           ).marginOnly(left: 12, right: 12, top: 12);
         }
         return const Offstage();
@@ -4284,5 +4289,69 @@ Widget? buildAvatarWidget({
       fit: BoxFit.cover,
       errorBuilder: (_, __, ___) => fallback ?? SizedBox.shrink(),
     ),
+  );
+}
+
+Widget edgeDeskCompanyInfo(BuildContext context) {
+  final labelStyle = Theme.of(context).textTheme.bodySmall;
+  final valueStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500);
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Text('Software owner', style: labelStyle),
+      const SizedBox(height: 4),
+      SelectableText('International Computing Group, LLC', style: valueStyle),
+      const SizedBox(height: 16),
+      Text('Operator', style: labelStyle),
+      const SizedBox(height: 4),
+      SelectableText('EdgeAlphix LLC', style: valueStyle),
+      const SizedBox(height: 16),
+      Text('Address', style: labelStyle),
+      const SizedBox(height: 4),
+      SelectableText('Anaheim, CA 92802\nUnited States', style: valueStyle),
+    ],
+  );
+}
+
+Widget edgeDeskAbout(BuildContext context,
+    {required String version, String? buildDate}) {
+  final theme = Theme.of(context);
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Row(children: [
+        loadIcon(56),
+        const SizedBox(width: 16),
+        Expanded(child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('EdgeDesk', style: theme.textTheme.headlineSmall),
+            const SizedBox(height: 4),
+            Text('Version $version', style: theme.textTheme.bodyMedium),
+            if (buildDate != null)
+              Text('Built $buildDate', style: theme.textTheme.bodySmall),
+          ],
+        )),
+      ]),
+      const Divider(height: 40),
+      Text('Company', style: theme.textTheme.titleMedium),
+      const SizedBox(height: 16),
+      edgeDeskCompanyInfo(context),
+      const Divider(height: 40),
+      Text('Open source', style: theme.textTheme.titleMedium),
+      const SizedBox(height: 8),
+      const Text('Based on RustDesk, licensed under GNU AGPL-3.0.\nEdgeDesk modifications are available under the same license.'),
+      const SizedBox(height: 8),
+      Wrap(spacing: 8, children: [
+        TextButton(onPressed: () => showLicensePage(context: context,
+          applicationName: 'EdgeDesk'), child: const Text('Open Source Licenses')),
+        TextButton(onPressed: () => launchUrlString('https://github.com/EdgeAlphix/EdgeDesk'),
+          child: const Text('Source and patches')),
+        TextButton(onPressed: () => launchUrlString('https://edgealphix.com'),
+          child: const Text('EdgeAlphix website')),
+      ]),
+    ],
   );
 }

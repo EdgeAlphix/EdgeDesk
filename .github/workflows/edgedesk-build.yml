@@ -1465,32 +1465,24 @@ jobs:
     - name: Rename Binary
       run: |
         mv rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.job.suffix }}.deb flatpak/rustdesk.deb
-    - uses: rustdesk-org/run-on-arch-action@d3fcfbb632b84cf7f6bc772bfaaa2c2f4f8789a8
-      name: Build rustdesk flatpak package for ${{ matrix.job.arch }}
-      id: flatpak
-      with:
-        arch: ${{ matrix.job.arch }}
-        distro: ${{ matrix.job.distro }}
-        githubToken: ${{ github.token }}
-        setup: |
-          ls -l "${PWD}"
-        dockerRunArgs: |
-          --volume "${PWD}:/workspace"
-        shell: /bin/bash
-        install: |
-          apt-get update -y
-          apt-get install -y git flatpak flatpak-builder
-        run: |
-          # disable git safe.directory
-          git config --global --add safe.directory "*"
-          pushd /workspace
-          # flatpak deps
-          flatpak --user remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-          # package
-          pushd flatpak
-          git clone https://github.com/flathub/shared-modules.git --depth=1
-          flatpak-builder --user --install-deps-from=flathub -y --force-clean --repo=repo ./build ./rustdesk.json
-          flatpak build-bundle ./repo rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.job.suffix }}.flatpak com.edgealphix.desk
+    - name: Build Flatpak with SDK-compatible builder
+      shell: bash
+      run: |
+        docker run --rm --privileged --device /dev/fuse --volume "$PWD:/workspace" --workdir /workspace ubuntu:24.04 bash -euo pipefail <<'FLATPAK'
+        apt-get update -y
+        apt-get install -y git flatpak flatpak-builder appstream-compose
+        dpkg --compare-versions "$(dpkg-query -W -f='${Version}' flatpak-builder)" ge 1.4.0
+        # disable git safe.directory
+        git config --global --add safe.directory "*"
+        # flatpak deps
+        flatpak --user remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+        # package
+        pushd flatpak
+        git clone https://github.com/flathub/shared-modules.git --depth=1
+        flatpak-builder --user --install-deps-from=flathub -y --force-clean --repo=repo ./build ./rustdesk.json
+        flatpak build-bundle ./repo rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.job.suffix }}.flatpak com.edgealphix.desk
+
+        FLATPAK
     - name: Collect Publish flatpak package
       uses: actions/upload-artifact@v4
       with:

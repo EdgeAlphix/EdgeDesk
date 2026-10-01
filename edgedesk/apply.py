@@ -9,7 +9,6 @@ ID_SERVER = 'api.edgedesk.edgealphix.com:21116'
 API_SERVER = 'https://api.edgedesk.edgealphix.com'
 PUBLIC_KEY = 'YuYD7E0GMg76D1xz9wb2t0UT46g3qR2ugjAsDFTGuSw='
 SOURCE = 'https://github.com/EdgeAlphix/EdgeDesk'
-ABOUT = 'Software owner: International Computing Group, LLC\\nOperator: EdgeAlphix LLC\\nAnaheim, CA 92802\\nUnited States'
 
 
 def replace(path, old, new):
@@ -40,7 +39,6 @@ def apply(root):
         ("api-server".into(), "https://api.edgedesk.edgealphix.com".into()),
         ("key".into(), "YuYD7E0GMg76D1xz9wb2t0UT46g3qR2ugjAsDFTGuSw=".into()),
         ("relay-server".into(), "".into()),
-        ("allow-insecure-tls-fallback".into(), "Y".into()),
     ]));''')
     replace(cfg, 'pub static ref DEFAULT_LOCAL_SETTINGS: RwLock<HashMap<String, String>> = Default::default();', '''pub static ref DEFAULT_LOCAL_SETTINGS: RwLock<HashMap<String, String>> = RwLock::new(HashMap::from([
         ("enable-udp-punch".into(), "Y".into()),
@@ -98,10 +96,10 @@ def apply(root):
         raise RuntimeError('Could not find translation entry point')
     # Exact translation entry point is patched separately after its signature is checked.
     mobile = root / 'flutter/lib/mobile/pages/settings_page.dart'
-    replace(mobile, "tiles: [\n            SettingsTile(\n                onPressed: (context) async {\n                  await launchUrl(Uri.parse(url));", "tiles: [\n            SettingsTile(title: const Text('" + ABOUT + "'), leading: const Icon(Icons.business)),\n            SettingsTile(title: const Text('Open Source Licenses'), leading: const Icon(Icons.code), onPressed: (context) => showLicensePage(context: context, applicationName: 'EdgeDesk')),\n            SettingsTile(title: const Text('Source and patches (AGPL-3.0)'), leading: const Icon(Icons.source), onPressed: (context) => launchUrlString('" + SOURCE + "')),\n            SettingsTile(\n                onPressed: (context) async {\n                  await launchUrl(Uri.parse(url));")
-    replace(mobile, "Text('Version: $version'),", "Text('Version: $version'),\n        const Text('" + ABOUT + "'),\n        const Text('RustDesk and EdgeDesk modifications: GNU AGPL-3.0'),\n        InkWell(onTap: () => launchUrlString('" + SOURCE + "'), child: const Text('Source and patches')),")
+    replace(mobile, "tiles: [\n            SettingsTile(\n                onPressed: (context) async {\n                  await launchUrl(Uri.parse(url));", "tiles: [\n            SettingsTile(title: edgeDeskCompanyInfo(context), leading: const Icon(Icons.business)),\n            SettingsTile(title: const Text('Open Source Licenses'), leading: const Icon(Icons.code), onPressed: (context) => showLicensePage(context: context, applicationName: 'EdgeDesk')),\n            SettingsTile(title: const Text('Source and patches (AGPL-3.0)'), leading: const Icon(Icons.source), onPressed: (context) => launchUrlString('" + SOURCE + "')),\n            SettingsTile(\n                onPressed: (context) async {\n                  await launchUrl(Uri.parse(url));")
+    replace(mobile, "Text('Version: $version'),", "Text('Version: $version'),\n        edgeDeskCompanyInfo(context),\n        const Text('RustDesk and EdgeDesk modifications: GNU AGPL-3.0'),\n        InkWell(onTap: () => launchUrlString('" + SOURCE + "'), child: const Text('Source and patches')),")
     desktop = root / 'flutter/lib/desktop/pages/desktop_setting_page.dart'
-    replace(desktop, "child: _Card(title: translate('About RustDesk'), children: [", "child: _Card(title: translate('About RustDesk'), children: [\n          const SelectableText('" + ABOUT + "'),\n          TextButton(onPressed: () => showLicensePage(context: context, applicationName: 'EdgeDesk'), child: const Text('Open Source Licenses')),\n          TextButton(onPressed: () => launchUrlString('" + SOURCE + "'), child: const Text('Source and patches (AGPL-3.0)')),")
+    replace(desktop, "child: _Card(title: translate('About RustDesk'), children: [", "child: _Card(title: translate('About RustDesk'), children: [\n          edgeDeskCompanyInfo(context).marginOnly(bottom: 16),\n          TextButton(onPressed: () => showLicensePage(context: context, applicationName: 'EdgeDesk'), child: const Text('Open Source Licenses')),\n          TextButton(onPressed: () => launchUrlString('" + SOURCE + "'), child: const Text('Source and patches (AGPL-3.0)')),")
     # Disable all runtime rustdesk.com destinations, including documentation links.
     for base in ('src', 'libs/hbb_common/src', 'flutter/lib', 'res'):
         for path in (root / base).rglob('*'):

@@ -8,13 +8,88 @@ import subprocess
 root = Path(__file__).resolve().parent.parent
 common = root / 'flutter/lib/common.dart'
 data = common.read_text().replace('return platformFFI.translate(name, localeName);', "return platformFFI.translate(name, localeName).replaceAll('RustDesk', 'EdgeDesk');")
+data = data.replace('translate("powered_by_me")', "'Powered by EdgeAlphix'")
+powered_start = data.index('Widget loadPowered(BuildContext context)')
+powered_end = data.index('const _kDefaultLogoAsset', powered_start)
+data = data[:powered_start] + data[powered_start:powered_end].replace('https://github.com/EdgeAlphix/EdgeDesk', 'https://edgealphix.com') + data[powered_end:]
+data = data.replace('child: image,\n          ).marginOnly', '''child: Theme.of(context).brightness == Brightness.dark
+                ? ColorFiltered(
+                    colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                    child: image,
+                  )
+                : image,
+          ).marginOnly''')
+data += '''
+Widget edgeDeskCompanyInfo(BuildContext context) {
+  final labelStyle = Theme.of(context).textTheme.bodySmall;
+  final valueStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500);
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Text('Software owner', style: labelStyle),
+      const SizedBox(height: 4),
+      SelectableText('International Computing Group, LLC', style: valueStyle),
+      const SizedBox(height: 16),
+      Text('Operator', style: labelStyle),
+      const SizedBox(height: 4),
+      SelectableText('EdgeAlphix LLC', style: valueStyle),
+      const SizedBox(height: 16),
+      Text('Address', style: labelStyle),
+      const SizedBox(height: 4),
+      SelectableText('Anaheim, CA 92802\\nUnited States', style: valueStyle),
+    ],
+  );
+}
+
+Widget edgeDeskAbout(BuildContext context,
+    {required String version, String? buildDate}) {
+  final theme = Theme.of(context);
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Row(children: [
+        loadIcon(56),
+        const SizedBox(width: 16),
+        Expanded(child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('EdgeDesk', style: theme.textTheme.headlineSmall),
+            const SizedBox(height: 4),
+            Text('Version $version', style: theme.textTheme.bodyMedium),
+            if (buildDate != null)
+              Text('Built $buildDate', style: theme.textTheme.bodySmall),
+          ],
+        )),
+      ]),
+      const Divider(height: 40),
+      Text('Company', style: theme.textTheme.titleMedium),
+      const SizedBox(height: 16),
+      edgeDeskCompanyInfo(context),
+      const Divider(height: 40),
+      Text('Open source', style: theme.textTheme.titleMedium),
+      const SizedBox(height: 8),
+      const Text('Based on RustDesk, licensed under GNU AGPL-3.0.\\nEdgeDesk modifications are available under the same license.'),
+      const SizedBox(height: 8),
+      Wrap(spacing: 8, children: [
+        TextButton(onPressed: () => showLicensePage(context: context,
+          applicationName: 'EdgeDesk'), child: const Text('Open Source Licenses')),
+        TextButton(onPressed: () => launchUrlString('https://github.com/EdgeAlphix/EdgeDesk'),
+          child: const Text('Source and patches')),
+        TextButton(onPressed: () => launchUrlString('https://edgealphix.com'),
+          child: const Text('EdgeAlphix website')),
+      ]),
+    ],
+  );
+}
+'''
 common.write_text(data)
 p = root / 'flutter/lib/desktop/widgets/tabbar_widget.dart'
 p.write_text(p.read_text().replace('"RustDesk",', '"EdgeDesk",'))
 cfg = root / 'libs/hbb_common/src/config.rs'
 data = cfg.read_text().replace('("language".into(), "en".into())', '("lang".into(), "en".into())')
-data = data.replace('        ("allow-insecure-tls-fallback".into(), "Y".into()),\n', '')
-data = data.replace('pub static ref DEFAULT_SETTINGS: RwLock<HashMap<String, String>> = Default::default();', 'pub static ref DEFAULT_SETTINGS: RwLock<HashMap<String, String>> = RwLock::new(HashMap::from([("allow-insecure-tls-fallback".into(), "Y".into())]));')
+data = data.replace('pub static ref DEFAULT_SETTINGS: RwLock<HashMap<String, String>> = Default::default();', 'pub static ref DEFAULT_SETTINGS: RwLock<HashMap<String, String>> = RwLock::new(HashMap::from([("allow-insecure-tls-fallback".into(), "N".into())]));')
 cfg.write_text(data)
 # Registration's fallback identity uses our own host, even if all options are absent.
 data = cfg.read_text().replace('https://github.com/EdgeAlphix/EdgeDesk"]', 'api.edgedesk.edgealphix.com:21116"]')
@@ -25,22 +100,24 @@ app_info.write_text(app_info.read_text().replace('Purslane Tech Pte. Ltd. All ri
 
 from PIL import Image, ImageOps
 def crop_artwork(path):
-    image = Image.open(path).convert('RGB')
-    bounds = image.convert('L').point(lambda value: 255 if value < 200 else 0).getbbox()
+    image = Image.open(path).convert('RGBA')
+    bounds = image.getchannel('A').point(lambda value: 255 if value > 128 else 0).getbbox()
     if bounds is None:
         raise ValueError(f'No artwork found: {path}')
     left, top, right, bottom = bounds
-    return image.crop((max(0, left - 2), max(0, top - 2), min(image.width, right + 2), min(image.height, bottom + 2)))
+    return ImageOps.expand(image.crop((left, top, right, bottom)), border=max(2, round((bottom - top) * 0.06)))
 
-source = crop_artwork(root / 'edgedesk/assets/logo-original.jpg')
+source = crop_artwork(root / 'edgedesk/assets/logo-transparent.png')
 source.save(root / 'edgedesk/assets/logo.png')
-wordmark = crop_artwork(root / 'edgedesk/assets/wordmark-original.jpg')
+wordmark = crop_artwork(root / 'edgedesk/assets/wordmark-transparent.png')
 wordmark.save(root / 'edgedesk/assets/wordmark.png')
 # Crop the white margins without changing the supplied artwork.
-def icon(path, size):
-    canvas = Image.new('RGB', (size, size), 'white')
-    converted = ImageOps.contain(source, (size, size), Image.Resampling.LANCZOS)
-    canvas.paste(converted, ((size-converted.width)//2, (size-converted.height)//2))
+def icon(path, size, opaque=False):
+    canvas = Image.new('RGBA', (size, size), 'white' if opaque else (0, 0, 0, 0))
+    converted = ImageOps.contain(source, (round(size * 0.82), round(size * 0.82)), Image.Resampling.LANCZOS)
+    canvas.alpha_composite(converted, ((size-converted.width)//2, (size-converted.height)//2))
+    if opaque:
+        canvas = canvas.convert('RGB')
     canvas.save(path)
 
 for base in ('flutter/android/app/src/main/res', 'flutter/ios/Runner/Assets.xcassets', 'flutter/macos/Runner/Assets.xcassets'):
@@ -48,7 +125,7 @@ for base in ('flutter/android/app/src/main/res', 'flutter/ios/Runner/Assets.xcas
         if 'ic_launcher' in path.name or 'AppIcon' in str(path):
             with Image.open(path) as existing:
                 size = max(existing.size)
-            icon(path, size)
+            icon(path, size, opaque='flutter/ios/' in str(path) or 'flutter/android/' in str(path))
 for name in ('logo.png', 'logo256.png'):
     path = root / 'flutter/assets' / name
     if path.exists():
@@ -70,10 +147,66 @@ svg = f'<svg xmlns="http://www.w3.org/2000/svg" width="{source.width}" height="{
 for path in (root/'flutter/assets').glob('*.svg'):
     if 'logo' in path.name.lower():
         path.write_text(svg)
-wordmark.save(root / 'edgedesk/assets/wordmark.jpg', quality=95)
+(root / 'edgedesk/assets/wordmark.jpg').unlink(missing_ok=True)
 print('EdgeDesk branding finalized')
 
 from apply import body
+desktop = root / 'flutter/lib/desktop/pages/desktop_setting_page.dart'
+data = desktop.read_text()
+start = data.index('class _AboutState extends State<_About>')
+end = data.index('//#endregion', start)
+data = data[:start] + '''class _AboutState extends State<_About> {
+  @override
+  Widget build(BuildContext context) {
+    return futureBuilder(future: () async {
+      return {
+        'version': await bind.mainGetVersion(),
+        'buildDate': await bind.mainGetBuildDate(),
+      };
+    }(), hasData: (data) {
+      return SingleChildScrollView(
+        child: _Card(title: 'About EdgeDesk', children: [
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: edgeDeskAbout(context,
+              version: data['version'].toString(),
+              buildDate: data['buildDate'].toString()),
+          ),
+        ]),
+      );
+    });
+  }
+}
+
+''' + data[end:]
+desktop.write_text(data)
+mobile = root / 'flutter/lib/mobile/pages/settings_page.dart'
+data = mobile.read_text()
+start = data.index('        SettingsSection(\n          title: Text(translate("About")),')
+end = data.index('      ],\n    );\n    return settings;', start)
+data = data[:start] + '''        SettingsSection(
+          title: const Text('About'),
+          tiles: [
+            SettingsTile(
+              title: const Text('EdgeDesk'),
+              description: Text('Version $version'),
+              leading: loadIcon(32),
+              onPressed: (context) => showAbout(gFFI.dialogManager),
+            ),
+          ],
+        ),
+''' + data[end:]
+mobile.write_text(data)
+body(root / 'flutter/lib/mobile/pages/settings_page.dart',
+     'void showAbout(OverlayDialogManager dialogManager)', '''  dialogManager.show((setState, close, context) {
+    return CustomAlertDialog(
+      title: const Text('About EdgeDesk'),
+      content: SingleChildScrollView(
+        child: edgeDeskAbout(context, version: version),
+      ),
+      actions: [],
+    );
+  }, clickMaskDismiss: true, backDismiss: true);''')
 body(root/'src/common.rs', 'pub fn is_public(url: &str)', '    let _ = url;\n    false')
 body(root/'src/common.rs', 'fn test_is_public()', '        assert!(!is_public("https://api.edgedesk.edgealphix.com"));')
 rc=root/'flutter/windows/runner/Runner.rc'
@@ -134,7 +267,6 @@ img.save(root / 'flutter/macos/Runner/AppIcon.icns', format='ICNS')
 # Adaptive icons use a transparent foreground inside Android's circular safe zone.
 import math
 foreground = source.convert('RGBA')
-foreground.putalpha(source.convert('L').point(lambda value: 255 if value < 200 else 0))
 cx, cy = foreground.width / 2, foreground.height / 2
 radius = max(math.hypot(x - cx, y - cy) for y in range(foreground.height) for x in range(foreground.width) if foreground.getpixel((x, y))[3])
 for p in (root / 'flutter/android/app/src/main/res').rglob('ic_launcher_foreground.png'):

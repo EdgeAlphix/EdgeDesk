@@ -27,6 +27,15 @@ for key in ('build-for-windows-sciter','build-rustdesk-linux-sciter','build-rust
 flatpak = original['jobs']['build-flatpak']
 flatpak['needs'] = ['build-rustdesk-linux']
 flatpak['strategy']['matrix']['job'] = [j for j in flatpak['strategy']['matrix']['job'] if not j.get('suffix')]
+for step in flatpak['steps']:
+    if step.get('id') == 'flatpak':
+        commands = step['with']['run'].replace('pushd /workspace\n', '')
+        step.clear()
+        step.update({'name': 'Build Flatpak with SDK-compatible builder', 'shell': 'bash', 'run': '''docker run --rm --privileged --device /dev/fuse --volume "$PWD:/workspace" --workdir /workspace ubuntu:24.04 bash -euo pipefail <<'FLATPAK'
+apt-get update -y
+apt-get install -y git flatpak flatpak-builder appstream-compose
+dpkg --compare-versions "$(dpkg-query -W -f='${Version}' flatpak-builder)" ge 1.4.0
+''' + commands + '\nFLATPAK\n'})
 bridgejob = original['jobs']['generate-bridge']
 bridgejob['uses'] = './.github/workflows/edgedesk-bridge.yml'
 bridgejob['with'] = {'source-ref': '${{ inputs.source-ref }}'}
