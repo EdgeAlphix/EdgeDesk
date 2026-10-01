@@ -23,7 +23,7 @@ UDP hole punching, IPv6 P2P and insecure TLS fallback default on. WebSocket defa
 
 `edgedesk-release.yml` checks GitHub's latest **published stable release** every six hours. A commit on upstream does not trigger a build. A release already published by EdgeDesk is skipped. Failed builds can retry the same immutable source tag. Workflow dispatch performs the same stable-release check.
 
-`edgedesk/prepare_release.py` checks out that exact upstream tag, applies the maintained overlay, generates the reusable build workflows from that release, verifies policy and vendors modified `hbb_common`. It creates an immutable `v<upstream>-edgedesk.1` source tag. Structural upstream changes cause preparation to fail rather than silently publishing an unrestricted client.
+`edgedesk/prepare_release.py` checks out that exact upstream tag, applies the maintained overlay, reuses the maintained platform build workflows, verifies policy and vendors modified `hbb_common`. It creates an immutable `v<upstream>-edgedesk.1` source tag. Structural upstream changes cause preparation to fail rather than silently publishing an unrestricted client.
 
 All requested formats must exist before publication: Android APK, unsigned iOS IPA, macOS `.app.zip` and DMG, Windows EXE, Linux DEB/RPM/openSUSE RPM/Arch `.pkg.tar.zst`/AppImage/Flatpak and a pinned Nix derivation. Source archives, patches, upstream provenance and SHA256 checksums accompany the release.
 
