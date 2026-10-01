@@ -88,6 +88,20 @@ Widget edgeDeskAbout(BuildContext context,
 }
 '''
 common.write_text(data)
+p = root / 'flutter/lib/mobile/pages/server_page.dart'
+data = p.read_text()
+data, count = re.subn(r'                onPressed: \(\) \{\n                  if \(gFFI\.userModel\.userName\.value\.isEmpty &&\n.*?\n                \},', '                onPressed: serverModel.toggleService,', data, count=1, flags=re.S)
+assert count == 1, 'Mobile start-service action changed upstream'
+data, count = re.subn(r'                !serverModel\.mediaOk &&\n.*?                    : serverModel\.toggleService\),', '                serverModel.toggleService),', data, count=1, flags=re.S)
+assert count == 1, 'Mobile screen-capture action changed upstream'
+start = data.index('class ScamWarningDialog extends StatefulWidget {')
+end = data.index('class ServerInfo extends StatelessWidget {', start)
+data = data[:start] + data[end:]
+start = data.index('void showScamWarning(BuildContext context, ServerModel serverModel) {')
+assert re.fullmatch(r'void showScamWarning\(BuildContext context, ServerModel serverModel\) \{\n  showDialog\(\n    context: context,\n    builder: \(BuildContext context\) \{\n      return ScamWarningDialog\(serverModel: serverModel\);\n    \},\n  \);\n\}\s*', data[start:]), 'Mobile warning function changed upstream'
+data = data[:start].rstrip() + '\n'
+p.write_text(data)
+
 p = root / 'src/platform/macos.rs'
 p.write_text(p.read_text().replace('    s = s.replace("rustdesk", &crate::get_app_name().to_lowercase());', '    s = s.replace("com.carriez.RustDesk", &crate::get_full_name());\n    s = s.replace("rustdesk", &crate::get_app_name().to_lowercase());'))
 p = root / 'src/platform/privileges_scripts/install.scpt'

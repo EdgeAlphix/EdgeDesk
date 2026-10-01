@@ -35,6 +35,12 @@ assert 'LicenseRegistry.addLicense' in (root/'flutter/lib/main.dart').read_text(
 for p in ('flutter/lib/mobile/pages/settings_page.dart','flutter/lib/desktop/pages/desktop_setting_page.dart'):
     t=(root/p).read_text()
     assert 'edgeDeskAbout(context' in t
+mobile_server = (root / 'flutter/lib/mobile/pages/server_page.dart').read_text()
+assert 'ScamWarningDialog' not in mobile_server
+assert 'showScamWarning' not in mobile_server
+assert 'show-scam-warning' not in mobile_server
+assert 'onPressed: serverModel.toggleService,' in mobile_server
+assert 'translate("Screen Capture"),\n                serverModel.mediaOk,\n                serverModel.toggleService)' in mobile_server
 about = (root / 'flutter/lib/common.dart').read_text()
 assert 'International Computing Group, LLC' in about and 'EdgeAlphix LLC' in about and 'Anaheim, CA 92802' in about
 assert "SelectableText('Anaheim, CA 92802\\nUnited States', style: valueStyle)" in about
