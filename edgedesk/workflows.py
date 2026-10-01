@@ -63,6 +63,13 @@ for name, check in checks.items():
     steps.insert(index + 1, check)
 linux_build = next(step for step in original["jobs"]["build-rustdesk-linux"]["steps"] if step.get("name") == "Build rustdesk")
 linux_build["with"]["run"] = linux_build["with"]["run"].replace("python3 ./build.py --flutter --skip-cargo", 'python3 ./build.py --flutter --skip-cargo\n          binary=$(find /workspace/flutter/build/linux -path "*/release/bundle/edgedesk" -type f -print -quit)\n          test -n "$binary"\n          "$binary" --version | grep -F "${{ env.VERSION }}"')
+mac_steps = original["jobs"]["build-for-macOS"]["steps"]
+mac_check = next(step for step in mac_steps if step.get("name") == "Verify macOS application identity and executable")
+mac_steps.remove(mac_check)
+index = next(i for i, step in enumerate(mac_steps) if step.get("name") == "Build rustdesk")
+mac_steps.insert(index + 1, {'name': 'Sign development application consistently', 'shell': 'bash', 'run': 'codesign --force --deep --sign - --entitlements flutter/macos/Runner/Release.entitlements flutter/build/macos/Build/Products/Release/EdgeDesk.app\ncodesign --verify --deep --strict flutter/build/macos/Build/Products/Release/EdgeDesk.app\n'})
+index = next(i for i, step in enumerate(mac_steps) if step.get("name") == "Codesign app and create signed dmg")
+mac_steps.insert(index + 1, mac_check)
 # Archive .app with symlinks preserved; .dmg remains available too.
 mac = original['jobs']['build-for-macOS']['steps']
 mac += [{'name':'Archive EdgeDesk application','shell':'bash','run':'ditto -c -k --sequesterRsrc --keepParent flutter/build/macos/Build/Products/Release/EdgeDesk.app EdgeDesk-${{ env.VERSION }}-${{ matrix.job.arch }}.app.zip'}, {'name':'Collect macOS app','uses':'actions/upload-artifact@v4','with':{'name':'package-macos-app-${{ matrix.job.arch }}','path':'EdgeDesk-*.app.zip','if-no-files-found':'error'}}]

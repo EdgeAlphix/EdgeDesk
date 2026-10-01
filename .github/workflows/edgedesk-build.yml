@@ -569,12 +569,11 @@ jobs:
           sed -i -e "s/MACOSX_DEPLOYMENT_TARGET = [0-9]*.[0-9]*;/MACOSX_DEPLOYMENT_TARGET = ${MIN_MACOS_VERSION};/" flutter/macos/Runner.xcodeproj/project.pbxproj
         fi
         ./build.py --flutter --hwcodec --unix-file-copy-paste ${{ matrix.job.extra-build-args }}
-    - name: Verify macOS application identity and executable
+    - name: Sign development application consistently
       shell: bash
       run: |
-        app=flutter/build/macos/Build/Products/Release/EdgeDesk.app
-        test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app/Contents/Info.plist")" = com.edgealphix.desk
-        "$app/Contents/MacOS/EdgeDesk" --version | grep -F "${{ env.VERSION }}"
+        codesign --force --deep --sign - --entitlements flutter/macos/Runner/Release.entitlements flutter/build/macos/Build/Products/Release/EdgeDesk.app
+        codesign --verify --deep --strict flutter/build/macos/Build/Products/Release/EdgeDesk.app
     - name: create unsigned dmg
       if: env.UPLOAD_ARTIFACT == 'true'
       run: |
@@ -605,6 +604,12 @@ jobs:
         codesign --force --options runtime -s ${{ secrets.MACOS_CODESIGN_IDENTITY }} --deep --strict rustdesk-${{ env.VERSION }}.dmg -vvv
         # notarize the rustdesk-${{ env.VERSION }}.dmg
         rcodesign notary-submit --api-key-path ${{ github.workspace }}/rustdesk.json  --staple rustdesk-${{ env.VERSION }}.dmg
+    - name: Verify macOS application identity and executable
+      shell: bash
+      run: |
+        app=flutter/build/macos/Build/Products/Release/EdgeDesk.app
+        test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app/Contents/Info.plist")" = com.edgealphix.desk
+        "$app/Contents/MacOS/EdgeDesk" --version | grep -F "${{ env.VERSION }}"
     - name: Rename rustdesk
       if: env.UPLOAD_ARTIFACT == 'true'
       run: |
