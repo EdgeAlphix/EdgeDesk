@@ -75,6 +75,12 @@ assert 'bash edgedesk/sign_macos.sh' in build_workflow
 assert 'EDGEDESK_MACOS_P12_PASSWORD' in build_workflow
 assert 'Depends: libc6 (>= 2.31)' in (root / 'build.py').read_text()
 assert 'if (isMacOS) setState(() {});' in (root / 'flutter/lib/desktop/pages/desktop_home_page.dart').read_text()
+assert 's = s.replace("com.carriez.RustDesk", &crate::get_full_name());' in (root / 'src/platform/macos.rs').read_text()
+for name in ('agent.plist', 'daemon.plist', 'install.scpt', 'update.scpt', 'uninstall.scpt'):
+    script = (root / 'src/platform/privileges_scripts' / name).read_text()
+    script = script.replace('com.carriez.rustdesk', 'com.edgealphix.desk').replace('com.carriez.RustDesk', 'com.edgealphix.EdgeDesk').replace('rustdesk', 'edgedesk').replace('RustDesk', 'EdgeDesk')
+    assert 'com.carriez' not in script
+    assert 'com.edgealphix.EdgeDesk_' in script
 
 # Native service management and package layouts use the same executable name.
 assert 'set(BINARY_NAME "edgedesk")' in (root / 'flutter/linux/CMakeLists.txt').read_text()

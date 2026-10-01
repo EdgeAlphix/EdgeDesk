@@ -88,6 +88,10 @@ Widget edgeDeskAbout(BuildContext context,
 }
 '''
 common.write_text(data)
+p = root / 'src/platform/macos.rs'
+p.write_text(p.read_text().replace('    s = s.replace("rustdesk", &crate::get_app_name().to_lowercase());', '    s = s.replace("com.carriez.RustDesk", &crate::get_full_name());\n    s = s.replace("rustdesk", &crate::get_app_name().to_lowercase());'))
+p = root / 'src/platform/privileges_scripts/install.scpt'
+p.write_text(p.read_text().replace('  set sh to sh1 & sh2 & sh3 & sh4 & sh5', '  set sh0 to "mkdir -p /var/root/Library/Preferences/com.carriez.RustDesk;"\n  set sh to sh0 & sh1 & sh2 & sh3 & sh4 & sh5'))
 p = root / 'flutter/lib/desktop/pages/desktop_home_page.dart'
 p.write_text(p.read_text().replace('      shouldBeBlocked(_block, canBeBlocked);', '      shouldBeBlocked(_block, canBeBlocked);\n      if (isMacOS) setState(() {});'))
 p = root / 'flutter/lib/desktop/widgets/tabbar_widget.dart'

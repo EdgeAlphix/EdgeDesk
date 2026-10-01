@@ -25,7 +25,7 @@ upstream=release['tag_name']
 if release['draft'] or release['prerelease'] or not re.fullmatch(r'v?\d+\.\d+\.\d+(?:-\d+)?',upstream):
     raise RuntimeError('Only published stable version releases are accepted')
 version=upstream.removeprefix('v')
-tag=f'v{version}-edgedesk.9'
+tag=f'v{version}-edgedesk.10'
 existing=subprocess.run(['gh','release','view',tag,'--repo',repo,'--json','isDraft'],capture_output=True,text=True)
 if existing.returncode==0 and not json.loads(existing.stdout)['isDraft']:
     output(build='false',version=version,tag=tag)
