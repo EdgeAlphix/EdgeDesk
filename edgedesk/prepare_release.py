@@ -25,7 +25,7 @@ upstream=release['tag_name']
 if release['draft'] or release['prerelease'] or not re.fullmatch(r'v?\d+\.\d+\.\d+(?:-\d+)?',upstream):
     raise RuntimeError('Only published stable version releases are accepted')
 version=upstream.removeprefix('v')
-tag=f'v{version}-edgedesk.5'
+tag=f'v{version}-edgedesk.6'
 existing=subprocess.run(['gh','release','view',tag,'--repo',repo,'--json','isDraft'],capture_output=True,text=True)
 if existing.returncode==0 and not json.loads(existing.stdout)['isDraft']:
     output(build='false',version=version,tag=tag)
@@ -51,7 +51,7 @@ with tempfile.TemporaryDirectory(prefix='edgedesk-release-') as directory:
     (dst/'edgedesk/patches').mkdir(exist_ok=True)
     # Include new files and binary artwork, excluding previous patch artifacts.
     run('git','add','-A',cwd=dst)
-    run('git','add','-f','edgedesk/assets',cwd=dst)
+    run('git','add','-f','edgedesk/assets','flutter/assets',cwd=dst)
     run('git','reset','--','edgedesk/patches',cwd=dst)
     (dst/'edgedesk/patches/client.patch').write_text(run('git','diff','--cached','--binary',cwd=dst,capture=True)+'\n')
     (dst/'edgedesk/patches/hbb-common.patch').write_text(run('git','diff','--binary',cwd=dst/'libs/hbb_common',capture=True)+'\n')
@@ -67,7 +67,7 @@ with tempfile.TemporaryDirectory(prefix='edgedesk-release-') as directory:
     run('git','fetch',remote,'main','--depth','1',cwd=dst)
     run('git','reset','--soft','FETCH_HEAD',cwd=dst)
     run('git','add','-A',cwd=dst)
-    run('git','add','-f','edgedesk/assets',cwd=dst)
+    run('git','add','-f','edgedesk/assets','flutter/assets',cwd=dst)
     run('git','commit','-m',f'EdgeDesk {version}: apply managed client overlay',cwd=dst)
     run('git','tag',tag,cwd=dst)
     run('git','remote','set-url','origin',remote,cwd=dst)

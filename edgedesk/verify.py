@@ -52,4 +52,7 @@ assert '/usr/share/edgedesk/edgedesk /usr/bin/edgedesk' in (root / 'res/DEBIAN/p
 for name in ('edgedesk.service', 'edgedesk.desktop', 'edgedesk-link.desktop', 'pam.d/edgedesk.debian'):
     assert (root / 'res' / name).is_file()
 
+assert (root / 'flutter/assets/logo.png').read_bytes() == (root / 'edgedesk/assets/wordmark.png').read_bytes()
+assert (root / 'flutter/assets/icon.png').read_bytes() == (root / 'edgedesk/assets/icon.png').read_bytes()
+assert (root / 'flutter/macos/Runner/AppIcon.icns').stat().st_size > 1000
 print('EdgeDesk policy, destinations, identifiers and license checks passed')
