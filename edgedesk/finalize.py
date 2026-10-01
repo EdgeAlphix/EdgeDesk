@@ -9,6 +9,8 @@ root = Path(__file__).resolve().parent.parent
 common = root / 'flutter/lib/common.dart'
 data = common.read_text().replace('return platformFFI.translate(name, localeName);', "return platformFFI.translate(name, localeName).replaceAll('RustDesk', 'EdgeDesk');")
 common.write_text(data)
+p = root / 'flutter/lib/desktop/widgets/tabbar_widget.dart'
+p.write_text(p.read_text().replace('"RustDesk",', '"EdgeDesk",'))
 cfg = root / 'libs/hbb_common/src/config.rs'
 data = cfg.read_text().replace('("language".into(), "en".into())', '("lang".into(), "en".into())')
 data = data.replace('        ("allow-insecure-tls-fallback".into(), "Y".into()),\n', '')
