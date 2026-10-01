@@ -8,7 +8,7 @@
  <string>HZF9JMC8YN</string>
  <key>provisioningProfiles</key>
  <dict>
- <key>com.carriez.flutterHbb</key>
+ <key>com.edgealphix.desk</key>
  <string>rustdesk-ios-prod-app-store</string>
  </dict>
  </dict>

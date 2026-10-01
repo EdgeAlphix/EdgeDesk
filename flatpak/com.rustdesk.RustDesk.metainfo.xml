@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>com.rustdesk.RustDesk</id>
+  <id>com.edgealphix.desk</id>
   <developer id="com.rustdesk">
-    <name>RustDesk</name>
+    <name>EdgeDesk</name>
   </developer>
-  <launchable type="desktop-id">com.rustdesk.RustDesk.desktop</launchable>
+  <launchable type="desktop-id">com.edgealphix.desk.desktop</launchable>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>AGPL-3.0-only</project_license>
-  <name>RustDesk</name>
+  <name>EdgeDesk</name>
   <summary>Secure remote desktop access</summary>
   <description>
     <p>

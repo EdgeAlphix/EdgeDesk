@@ -1,4 +1,4 @@
-package com.carriez.flutter_hbb
+package com.edgealphix.desk
 
 import android.Manifest.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
 import android.Manifest.permission.SYSTEM_ALERT_WINDOW
@@ -11,7 +11,7 @@ import android.widget.Toast
 import com.hjq.permissions.XXPermissions
 import io.flutter.embedding.android.FlutterActivity
 
-const val DEBUG_BOOT_COMPLETED = "com.carriez.flutter_hbb.DEBUG_BOOT_COMPLETED"
+const val DEBUG_BOOT_COMPLETED = "com.edgealphix.desk.DEBUG_BOOT_COMPLETED"
 
 class BootReceiver : BroadcastReceiver() {
     private val logTag = "tagBootReceiver"
@@ -36,7 +36,7 @@ class BootReceiver : BroadcastReceiver() {
                 action = ACT_INIT_MEDIA_PROJECTION_AND_SERVICE
                 putExtra(EXT_INIT_FROM_BOOT, true)
             }
-            Toast.makeText(context, "RustDesk is Open", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, "EdgeDesk is Open", Toast.LENGTH_LONG).show()
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(it)
             } else {

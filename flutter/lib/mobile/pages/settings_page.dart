@@ -36,7 +36,7 @@ class SettingsPage extends StatefulWidget implements PageShape {
   State<SettingsPage> createState() => _SettingsState();
 }
 
-const url = 'https://rustdesk.com/';
+const url = 'https://github.com/EdgeAlphix/EdgeDesk';
 
 enum KeepScreenOn {
   never,
@@ -953,6 +953,9 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
         SettingsSection(
           title: Text(translate("About")),
           tiles: [
+            SettingsTile(title: const Text('Software owner: International Computing Group, LLC\nOperator: EdgeAlphix LLC\nAnaheim, CA 92802\nUnited States'), leading: const Icon(Icons.business)),
+            SettingsTile(title: const Text('Open Source Licenses'), leading: const Icon(Icons.code), onPressed: (context) => showLicensePage(context: context, applicationName: 'EdgeDesk')),
+            SettingsTile(title: const Text('Source and patches (AGPL-3.0)'), leading: const Icon(Icons.source), onPressed: (context) => launchUrlString('https://github.com/EdgeAlphix/EdgeDesk')),
             SettingsTile(
                 onPressed: (context) async {
                   await launchUrl(Uri.parse(url));
@@ -960,7 +963,7 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
                 title: Text(translate("Version: ") + version),
                 value: Padding(
                   padding: EdgeInsets.symmetric(vertical: 8),
-                  child: Text('rustdesk.com',
+                  child: Text('https://github.com/EdgeAlphix/EdgeDesk',
                       style: TextStyle(
                         decoration: TextDecoration.underline,
                       )),
@@ -985,7 +988,7 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
             SettingsTile(
               title: Text(translate("Privacy Statement")),
               onPressed: (context) =>
-                  launchUrlString('https://rustdesk.com/privacy.html'),
+                  launchUrlString('https://github.com/EdgeAlphix/EdgeDesk'),
               leading: Icon(Icons.privacy_tip),
             )
           ],
@@ -1096,14 +1099,17 @@ void showAbout(OverlayDialogManager dialogManager) {
       title: Text(translate('About RustDesk')),
       content: Wrap(direction: Axis.vertical, spacing: 12, children: [
         Text('Version: $version'),
+        const Text('Software owner: International Computing Group, LLC\nOperator: EdgeAlphix LLC\nAnaheim, CA 92802\nUnited States'),
+        const Text('RustDesk and EdgeDesk modifications: GNU AGPL-3.0'),
+        InkWell(onTap: () => launchUrlString('https://github.com/EdgeAlphix/EdgeDesk'), child: const Text('Source and patches')),
         InkWell(
             onTap: () async {
-              const url = 'https://rustdesk.com/';
+              const url = 'https://github.com/EdgeAlphix/EdgeDesk';
               await launchUrl(Uri.parse(url));
             },
             child: Padding(
               padding: EdgeInsets.symmetric(vertical: 8),
-              child: Text('rustdesk.com',
+              child: Text('https://github.com/EdgeAlphix/EdgeDesk',
                   style: TextStyle(
                     decoration: TextDecoration.underline,
                   )),

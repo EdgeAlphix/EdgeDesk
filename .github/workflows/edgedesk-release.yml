@@ -1,0 +1,67 @@
+name: EdgeDesk stable releases
+on:
+  schedule:
+    - cron: '23 */6 * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: edgedesk-stable-release
+  cancel-in-progress: false
+jobs:
+  detect:
+    runs-on: ubuntu-24.04
+    outputs:
+      build: ${{ steps.release.outputs.build }}
+      version: ${{ steps.release.outputs.version }}
+      tag: ${{ steps.release.outputs.tag }}
+      source-ref: ${{ steps.release.outputs.source_ref }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check pillow==12.3.0 pyyaml==6.0.3
+      - run: gh auth setup-git
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Detect published upstream version and prepare source
+        id: release
+        run: python edgedesk/prepare_release.py
+        env:
+          GH_TOKEN: ${{ github.token }}
+  build:
+    needs: detect
+    if: needs.detect.outputs.build == 'true'
+    uses: ./.github/workflows/edgedesk-build.yml
+    secrets: inherit
+    with:
+      source-ref: ${{ needs.detect.outputs.source-ref }}
+      version: ${{ needs.detect.outputs.version }}
+      upload-artifact: true
+      upload-tag: ${{ needs.detect.outputs.tag }}
+  publish:
+    needs: [detect, build]
+    if: needs.detect.outputs.build == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.detect.outputs.source-ref }}
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: package-*
+          path: release-packages
+          merge-multiple: true
+      - name: Package complete source and distribution metadata
+        env:
+          VERSION: ${{ needs.detect.outputs.version }}
+          SOURCE_REF: ${{ needs.detect.outputs.source-ref }}
+        run: python3 edgedesk/package_release.py
+      - name: Publish complete release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.detect.outputs.tag }}
+          VERSION: ${{ needs.detect.outputs.version }}
+        run: |
+          gh release create "$RELEASE_TAG" release-packages/* --verify-tag --title "EdgeDesk $VERSION" --notes-file edgedesk/release-notes.md

@@ -2430,6 +2430,9 @@ class _AboutState extends State<_About> {
       return SingleChildScrollView(
         controller: scrollController,
         child: _Card(title: translate('About RustDesk'), children: [
+          const SelectableText('Software owner: International Computing Group, LLC\nOperator: EdgeAlphix LLC\nAnaheim, CA 92802\nUnited States'),
+          TextButton(onPressed: () => showLicensePage(context: context, applicationName: 'EdgeDesk'), child: const Text('Open Source Licenses')),
+          TextButton(onPressed: () => launchUrlString('https://github.com/EdgeAlphix/EdgeDesk'), child: const Text('Source and patches (AGPL-3.0)')),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -2448,7 +2451,7 @@ class _AboutState extends State<_About> {
                         .marginSymmetric(vertical: 4.0)),
               InkWell(
                   onTap: () {
-                    launchUrlString('https://rustdesk.com/privacy.html');
+                    launchUrlString('https://github.com/EdgeAlphix/EdgeDesk');
                   },
                   child: Text(
                     translate('Privacy Statement'),
@@ -2456,7 +2459,7 @@ class _AboutState extends State<_About> {
                   ).marginSymmetric(vertical: 4.0)),
               InkWell(
                   onTap: () {
-                    launchUrlString('https://rustdesk.com');
+                    launchUrlString('https://github.com/EdgeAlphix/EdgeDesk');
                   },
                   child: Text(
                     translate('Website'),

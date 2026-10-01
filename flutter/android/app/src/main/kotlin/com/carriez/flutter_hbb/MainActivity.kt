@@ -1,4 +1,4 @@
-package com.carriez.flutter_hbb
+package com.edgealphix.desk
 
 /**
  * Handle events from flutter

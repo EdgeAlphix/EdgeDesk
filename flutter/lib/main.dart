@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -39,6 +40,10 @@ WindowType? kWindowType;
 late List<String> kBootArgs;
 
 Future<void> main(List<String> args) async {
+  LicenseRegistry.addLicense(() async* {
+    yield LicenseEntryWithLineBreaks(['RustDesk', 'EdgeDesk'], await rootBundle.loadString('assets/edgedesk-agpl.txt'));
+  });
+
   earlyAssert();
   WidgetsFlutterBinding.ensureInitialized();
 
