@@ -35,7 +35,7 @@
 			<string>com.edgealphix.desk</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>rustdesk</string>
+				<string>edgedesk</string>
 			</array>
 		</dict>
 	</array>

@@ -1,6 +1,6 @@
 # EdgeDesk
 
-![EdgeDesk](edgedesk/assets/wordmark-original.jpg)
+![EdgeDesk](edgedesk/assets/wordmark.png)
 
 EdgeDesk is a remote desktop app based on [RustDesk](https://github.com/rustdesk/rustdesk). It uses EdgeAlphix servers. The server selects a nearby relay and skips offline nodes; devices on the same local network can connect directly.
 
