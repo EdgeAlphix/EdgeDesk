@@ -7,19 +7,19 @@ script:
  - mkdir ./AppDir
  - mv ./usr ./AppDir/usr
  # 32x32 icon
- - for i in {32,64,128}; do mkdir -p ./AppDir/usr/share/icons/hicolor/$i\x$i/apps/; cp ../res/$i\x$i.png ./AppDir/usr/share/icons/hicolor/$i\x$i/apps/rustdesk.png; done
- - mkdir -p ./AppDir/usr/share/icons/hicolor/scalable/apps/; cp ../res/scalable.svg ./AppDir/usr/share/icons/hicolor/scalable/apps/rustdesk.svg
+ - for i in {32,64,128}; do mkdir -p ./AppDir/usr/share/icons/hicolor/$i\x$i/apps/; cp ../res/$i\x$i.png ./AppDir/usr/share/icons/hicolor/$i\x$i/apps/edgedesk.png; done
+ - mkdir -p ./AppDir/usr/share/icons/hicolor/scalable/apps/; cp ../res/scalable.svg ./AppDir/usr/share/icons/hicolor/scalable/apps/edgedesk.svg
  # desktop file
- # - sed -i "s/Icon=\/usr\/share\/rustdesk\/files\/rustdesk.png/Icon=rustdesk/g" ./AppDir/usr/share/applications/rustdesk.desktop
+ # - sed -i "s/Icon=\/usr\/share\/edgedesk\/files\/edgedesk.png/Icon=edgedesk/g" ./AppDir/usr/share/applications/edgedesk.desktop
  - rm -rf ./AppDir/usr/share/applications
 AppDir:
   path: ./AppDir
   app_info:
-    id: rustdesk
-    name: rustdesk
-    icon: rustdesk
+    id: edgedesk
+    name: edgedesk
+    icon: edgedesk
     version: 1.4.9
-    exec: usr/share/rustdesk/rustdesk
+    exec: usr/share/edgedesk/edgedesk
     exec_args: $@
   apt:
     arch:
@@ -37,7 +37,7 @@ AppDir:
     - sourceline: deb http://archive.ubuntu.com/ubuntu/ focal-security main restricted
         universe multiverse
     include:
-    # https://github.com/rustdesk/rustdesk/issues/9103
+    # https://github.com/edgedesk/edgedesk/issues/9103
     # Because of APPDIR_LIBRARY_PATH, this libc6 is not used, use LD_PRELOAD: $APPDIR/usr/lib/x86_64-linux-gnu/libc.so.6 may help, If you have time, please have a try.
     # We modify APPDIR_LIBRARY_PATH to use system lib first because gst crashed if not doing so, but you can try to change it.
     - libc6:amd64
@@ -80,7 +80,7 @@ AppDir:
     env:
       GIO_MODULE_DIR: /lib64/gio/modules:/usr/lib/x86_64-linux-gnu/gio/modules:$APPDIR/usr/lib/x86_64-linux-gnu/gio/modules
       GDK_BACKEND: x11
-      APPDIR_LIBRARY_PATH: /lib64:/usr/lib/x86_64-linux-gnu:$APPDIR/lib/x86_64-linux-gnu:$APPDIR/lib/x86_64-linux-gnu/security:$APPDIR/lib/systemd:$APPDIR/usr/lib/x86_64-linux-gnu:$APPDIR/usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/2.10.0/loaders:$APPDIR/usr/lib/x86_64-linux-gnu/gstreamer-1.0:$APPDIR/usr/lib/x86_64-linux-gnu/gtk-3.0/3.0.0/immodules:$APPDIR/usr/lib/x86_64-linux-gnu/gtk-3.0/3.0.0/printbackends:$APPDIR/usr/lib/x86_64-linux-gnu/krb5/plugins/preauth:$APPDIR/usr/lib/x86_64-linux-gnu/libcanberra-0.30:$APPDIR/usr/lib/x86_64-linux-gnu/pulseaudio:$APPDIR/usr/lib/x86_64-linux-gnu/sasl2:$APPDIR/usr/lib/x86_64-linux-gnu/vdpau:$APPDIR/usr/share/rustdesk/lib:$APPDIR/lib/x86_64
+      APPDIR_LIBRARY_PATH: /lib64:/usr/lib/x86_64-linux-gnu:$APPDIR/lib/x86_64-linux-gnu:$APPDIR/lib/x86_64-linux-gnu/security:$APPDIR/lib/systemd:$APPDIR/usr/lib/x86_64-linux-gnu:$APPDIR/usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/2.10.0/loaders:$APPDIR/usr/lib/x86_64-linux-gnu/gstreamer-1.0:$APPDIR/usr/lib/x86_64-linux-gnu/gtk-3.0/3.0.0/immodules:$APPDIR/usr/lib/x86_64-linux-gnu/gtk-3.0/3.0.0/printbackends:$APPDIR/usr/lib/x86_64-linux-gnu/krb5/plugins/preauth:$APPDIR/usr/lib/x86_64-linux-gnu/libcanberra-0.30:$APPDIR/usr/lib/x86_64-linux-gnu/pulseaudio:$APPDIR/usr/lib/x86_64-linux-gnu/sasl2:$APPDIR/usr/lib/x86_64-linux-gnu/vdpau:$APPDIR/usr/share/edgedesk/lib:$APPDIR/lib/x86_64
       GST_PLUGIN_PATH: /lib64/gstreamer-1.0:/usr/lib/x86_64-linux-gnu/gstreamer-1.0:$APPDIR/usr/lib/x86_64-linux-gnu/gstreamer-1.0
       GST_PLUGIN_SYSTEM_PATH: /lib64/gstreamer-1.0:/usr/lib/x86_64-linux-gnu/gstreamer-1.0:$APPDIR/usr/lib/x86_64-linux-gnu/gstreamer-1.0
   test:

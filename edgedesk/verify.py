@@ -46,3 +46,10 @@ for source in manifest['modules'][-1]['sources']:
     if source.get('path', '').endswith('.xml'):
         assert (root / 'flatpak' / source['path']).is_file()
 assert 'com.rustdesk.RustDesk' not in (root / '.github/workflows/edgedesk-build.yml').read_text()
+
+# Native service management and package layouts use the same executable name.
+assert 'set(BINARY_NAME "edgedesk")' in (root / 'flutter/linux/CMakeLists.txt').read_text()
+assert 'ExecStart=/usr/bin/edgedesk --service' in (root / 'res/edgedesk.service').read_text()
+assert '/usr/share/edgedesk/edgedesk /usr/bin/edgedesk' in (root / 'res/DEBIAN/postinst').read_text()
+for name in ('edgedesk.service', 'edgedesk.desktop', 'edgedesk-link.desktop', 'pam.d/edgedesk.debian'):
+    assert (root / 'res' / name).is_file()

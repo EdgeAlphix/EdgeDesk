@@ -1198,12 +1198,12 @@ jobs:
           \ fedora package\"\npushd /workspace\ncase ${{ matrix.job.arch }} in\n \
           \ aarch64)\n    sed -i \"s/linux\\/x64/linux\\/arm64/g\" ./res/rpm-flutter.spec\n\
           \    ;;\nesac\nHBB=`pwd` rpmbuild ./res/rpm-flutter.spec -bb\npushd ~/rpmbuild/RPMS/${{\
-          \ matrix.job.arch }}\nfor name in rustdesk*??.rpm; do\n    mv \"$name\"\
+          \ matrix.job.arch }}\nfor name in edgedesk*??.rpm; do\n    mv \"$name\"\
           \ /workspace/\"${name%%.rpm}.rpm\"\ndone\n\n# rpm suse package\necho -e\
           \ \"start packaging suse package\"\npushd /workspace\ncase ${{ matrix.job.arch\
           \ }} in\n  aarch64)\n    sed -i \"s/linux\\/x64/linux\\/arm64/g\" ./res/rpm-flutter-suse.spec\n\
           \    ;;\nesac\nHBB=`pwd` rpmbuild ./res/rpm-flutter-suse.spec -bb\npushd\
-          \ ~/rpmbuild/RPMS/${{ matrix.job.arch }}\nfor name in rustdesk*??.rpm; do\n\
+          \ ~/rpmbuild/RPMS/${{ matrix.job.arch }}\nfor name in edgedesk*??.rpm; do\n\
           \    mv \"$name\" /workspace/\"${name%%.rpm}-suse.rpm\"\ndone\n"
     - name: Collect Publish debian/rpm package
       uses: actions/upload-artifact@v4
@@ -1211,7 +1211,7 @@ jobs:
         name: package-build-rustdesk-linux-13-${{ matrix.job.arch }}
         path: 'rustdesk-*.deb
 
-          rustdesk-*.rpm
+          edgedesk-*.rpm
 
           '
         if-no-files-found: error
@@ -1239,7 +1239,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: package-build-rustdesk-linux-17-${{ matrix.job.arch }}
-        path: 'res/rustdesk-${{ env.VERSION }}*.zst
+        path: 'res/edgedesk-${{ env.VERSION }}*.zst
 
           '
         if-no-files-found: error
@@ -1304,7 +1304,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: package-build-appimage-4-${{ matrix.job.arch }}
-        path: './appimage/rustdesk-${{ env.VERSION }}-*.AppImage
+        path: './appimage/edgedesk-${{ env.VERSION }}-*.AppImage
 
           '
         if-no-files-found: error

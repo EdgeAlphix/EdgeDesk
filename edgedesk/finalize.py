@@ -2,6 +2,7 @@
 """Complete branding and produce platform icon formats from supplied artwork."""
 from pathlib import Path
 import shutil
+import re
 import subprocess
 
 root = Path(__file__).resolve().parent.parent
@@ -84,3 +85,31 @@ manifest = json.loads(p.read_text())
 commands = manifest['modules'][-1]['build-commands']
 commands.append('install -Dm644 com.edgealphix.desk.metainfo.xml /app/share/metainfo/com.edgealphix.desk.metainfo.xml')
 p.write_text(json.dumps(manifest, indent=2) + '\n')
+
+# Linux service control derives its name from APP_NAME, so installed paths must agree.
+linux_files = list((root / 'res/DEBIAN').glob('*')) + list((root / 'res').glob('*.spec'))
+linux_files += [root / 'res/PKGBUILD', root / 'res/pacman_install', root / 'res/startwm.sh']
+for name in ('rustdesk.service', 'rustdesk.desktop', 'rustdesk-link.desktop'):
+    path = root / 'res' / name
+    target = path.with_name(name.replace('rustdesk', 'edgedesk'))
+    target.write_text(path.read_text().replace('rustdesk', 'edgedesk').replace('RustDesk', 'EdgeDesk'))
+    path.unlink()
+for path in linux_files:
+    path.write_text(path.read_text().replace('rustdesk', 'edgedesk').replace('GPL-3.0', 'AGPL-3.0').replace('AAGPL-', 'AGPL-'))
+p = root / 'flutter/linux/CMakeLists.txt'
+p.write_text(p.read_text().replace('set(BINARY_NAME "rustdesk")', 'set(BINARY_NAME "edgedesk")'))
+p = root / 'build.py'
+data = p.read_text().replace('Package: rustdesk', 'Package: edgedesk')
+for old, new in [('usr/share/rustdesk', 'usr/share/edgedesk'), ('usr/bin/rustdesk', 'usr/bin/edgedesk'), ('etc/rustdesk', 'etc/edgedesk'), ('pam.d/rustdesk', 'pam.d/edgedesk'), ('apps/rustdesk', 'apps/edgedesk'), ('applications/rustdesk', 'applications/edgedesk'), ('res/rustdesk.', 'res/edgedesk.'), ('res/rustdesk-link.', 'res/edgedesk-link.')]:
+    data = data.replace(old, new)
+p.write_text(data)
+p = root / 'flatpak/rustdesk.json'
+data = p.read_text().replace('"command": "rustdesk"', '"command": "edgedesk"').replace('"rustdesk.desktop"', '"edgedesk.desktop"').replace('"rename-icon": "rustdesk"', '"rename-icon": "edgedesk"').replace('/app/share/rustdesk/rustdesk /app/bin/rustdesk', '/app/share/edgedesk/edgedesk /app/bin/edgedesk')
+p.write_text(data)
+for path in (root / 'appimage').glob('*.yml'):
+    path.write_text(path.read_text().replace('rustdesk', 'edgedesk').replace('edgedesk.deb', 'rustdesk.deb'))
+
+p = root / 'res/pam.d/rustdesk.debian'
+p.rename(p.with_name('edgedesk.debian'))
+for p in (root / 'res').glob('*.spec'):
+    p.write_text(re.sub(r'^Vendor:.*$', 'Vendor:     EdgeAlphix LLC', p.read_text(), flags=re.M))

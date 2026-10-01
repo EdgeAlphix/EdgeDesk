@@ -11,8 +11,8 @@ root=Path(__file__).resolve().parent.parent
 out=root/'release-packages'
 version=os.environ['VERSION']
 for path in list(out.iterdir()):
-    if path.is_file() and path.name.startswith('rustdesk-'):
-        name=path.name.replace('rustdesk-', 'EdgeDesk-',1).replace('-signed.apk','.apk').replace('-aligned.apk','.apk')
+    if path.is_file() and path.name.startswith(('rustdesk-', 'edgedesk-')):
+        name=path.name.replace('rustdesk-', 'EdgeDesk-',1).replace('edgedesk-', 'EdgeDesk-',1).replace('-signed.apk','.apk').replace('-aligned.apk','.apk')
         path.rename(out/name)
 required=('.apk','.ipa','.app.zip','.exe','.deb','.rpm','-suse.rpm','.pkg.tar.zst','.AppImage','.flatpak')
 for suffix in required:
@@ -40,10 +40,10 @@ pkgs.stdenv.mkDerivation {{
   unpackPhase = "dpkg-deb -x $src .";
   installPhase = \'\'
     mkdir -p $out/lib/edgedesk $out/bin $out/share
-    cp -r usr/share/rustdesk/* $out/lib/edgedesk/
+    cp -r usr/share/edgedesk/* $out/lib/edgedesk/
     cp -r usr/share/applications usr/share/icons $out/share/
-    makeWrapper $out/lib/edgedesk/rustdesk $out/bin/edgedesk --prefix LD_LIBRARY_PATH : $out/lib/edgedesk/lib
-    substituteInPlace $out/share/applications/*.desktop --replace-fail /usr/bin/rustdesk $out/bin/edgedesk
+    makeWrapper $out/lib/edgedesk/edgedesk $out/bin/edgedesk --prefix LD_LIBRARY_PATH : $out/lib/edgedesk/lib
+    substituteInPlace $out/share/applications/*.desktop --replace-fail "Exec=edgedesk" "Exec=$out/bin/edgedesk"
   \'\';
   meta = {{ description = "EdgeDesk managed remote desktop"; homepage = "https://github.com/EdgeAlphix/EdgeDesk"; license = pkgs.lib.licenses.agpl3Only; platforms = [ "x86_64-linux" ]; mainProgram = "edgedesk"; }};
 }}

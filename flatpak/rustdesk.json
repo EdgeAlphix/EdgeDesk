@@ -3,14 +3,14 @@
   "runtime": "org.freedesktop.Platform",
   "runtime-version": "24.08",
   "sdk": "org.freedesktop.Sdk",
-  "command": "rustdesk",
+  "command": "edgedesk",
   "cleanup": [
     "/include",
     "/lib/pkgconfig",
     "/share/gtk-doc"
   ],
-  "rename-desktop-file": "rustdesk.desktop",
-  "rename-icon": "rustdesk",
+  "rename-desktop-file": "edgedesk.desktop",
+  "rename-icon": "edgedesk",
   "modules": [
     "shared-modules/libappindicator/libappindicator-gtk3-12.10.json",
     {
@@ -47,7 +47,7 @@
       "build-commands": [
         "bsdtar -Oxf rustdesk.deb data.tar.xz | bsdtar -xf -",
         "cp -r usr/* /app/",
-        "mkdir -p /app/bin && ln -s /app/share/rustdesk/rustdesk /app/bin/rustdesk",
+        "mkdir -p /app/bin && ln -s /app/share/edgedesk/edgedesk /app/bin/edgedesk",
         "install -Dm644 com.edgealphix.desk.metainfo.xml /app/share/metainfo/com.edgealphix.desk.metainfo.xml"
       ],
       "sources": [

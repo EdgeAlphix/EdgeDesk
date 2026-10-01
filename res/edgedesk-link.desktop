@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=EdgeDesk
+NoDisplay=true
+MimeType=x-scheme-handler/edgedesk;
+TryExec=edgedesk
+Exec=edgedesk %u
+Icon=edgedesk
+Terminal=false
+Type=Application
+StartupNotify=false
+StartupWMClass=edgedesk

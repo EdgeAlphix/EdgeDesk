@@ -39,9 +39,9 @@ for jobname, job in original['jobs'].items():
         if use.startswith('actions/checkout@'):
             step.setdefault('with',{})['ref'] = '${{ inputs.source-ref }}'
         if 'run' in step:
-            step['run'] = step['run'].replace('RustDesk.app', 'EdgeDesk.app').replace('com.rustdesk.RustDesk', 'com.edgealphix.desk')
+            step['run'] = step['run'].replace('RustDesk.app', 'EdgeDesk.app').replace('com.rustdesk.RustDesk', 'com.edgealphix.desk').replace('for name in rustdesk*??.rpm', 'for name in edgedesk*??.rpm')
         if use.startswith('softprops/action-gh-release@'):
-            files = step['with'].get('files','')
+            files = step['with'].get('files','').replace('rustdesk-*.rpm', 'edgedesk-*.rpm').replace('res/rustdesk-', 'res/edgedesk-').replace('./appimage/rustdesk-', './appimage/edgedesk-')
             # Publish only in the final all-platform job, after corresponding source is ready.
             step = {'name': 'Collect ' + step.get('name','package'), 'uses':'actions/upload-artifact@v4', 'with':{'name': f'package-{jobname}-{len(steps)}-${{{{ matrix.job.arch }}}}', 'path':files, 'if-no-files-found':'error'}, **({'if':step['if']} if 'if' in step else {})}
         steps.append(step)
