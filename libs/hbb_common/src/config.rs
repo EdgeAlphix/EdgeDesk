@@ -925,11 +925,11 @@ impl Config {
 
     pub fn get_rendezvous_server() -> String {
         "api.edgedesk.edgealphix.com:21116".to_owned()
-    }
+}
 
     pub fn get_rendezvous_servers() -> Vec<String> {
         vec!["api.edgedesk.edgealphix.com:21116".to_owned()]
-    }
+}
 
     pub fn reset_online() {
         *ONLINE.lock().unwrap() = Default::default();
