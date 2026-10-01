@@ -39,6 +39,8 @@ about = (root / 'flutter/lib/common.dart').read_text()
 assert 'International Computing Group, LLC' in about and 'EdgeAlphix LLC' in about and 'Anaheim, CA 92802' in about
 assert "SelectableText('Anaheim, CA 92802\\nUnited States', style: valueStyle)" in about
 assert 'Powered by EdgeAlphix' in about and 'Source and patches' in about
+assert 'Powered by EdgeAlphix Global Network Infrastructure' in about
+assert 'launchUrlString' not in about
 powered = about[about.index('Widget loadPowered'):about.index('const _kDefaultLogoAsset')]
 assert 'https://edgealphix.com' in powered and 'github.com' not in powered
 network = json.loads((root/'edgedesk/network.json').read_text())

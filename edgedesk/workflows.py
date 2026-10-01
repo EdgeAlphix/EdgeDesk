@@ -108,6 +108,12 @@ for job in bridge['jobs'].values():
         if step.get('name') == 'Run flutter rust bridge':
             step['run'] += '\ncd flutter && dart format --output=none --set-exit-if-changed lib/main.dart lib/common.dart lib/mobile/pages/settings_page.dart lib/desktop/pages/desktop_setting_page.dart || dart format lib/main.dart lib/common.dart lib/mobile/pages/settings_page.dart lib/desktop/pages/desktop_setting_page.dart\nflutter analyze --no-fatal-infos --no-fatal-warnings lib/main.dart lib/common.dart lib/mobile/pages/settings_page.dart lib/desktop/pages/desktop_setting_page.dart\n'
 third = yaml.load((wf/'third-party-RustDeskTempTopMostWindow.yml').read_text(), Loader=Loader)
+for job in third['jobs'].values():
+    for step in job.get('steps', []):
+        if step.get('uses', '').startswith('microsoft/setup-msbuild@'):
+            step.setdefault('with', {})['msbuild-architecture'] = 'x64'
+        if step.get('name') == 'Build the project':
+            step['run'] = step['run'].replace('msbuild ${{ env.project_path }}', 'msbuild ${{ env.project_path }} /p:PreferredToolArchitecture=x64')
 for value in third['on']['workflow_call']['inputs'].values():
     if value.get('required'):
         value.pop('default', None)

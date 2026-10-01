@@ -4347,11 +4347,14 @@ Widget edgeDeskAbout(BuildContext context,
       Wrap(spacing: 8, children: [
         TextButton(onPressed: () => showLicensePage(context: context,
           applicationName: 'EdgeDesk'), child: const Text('Open Source Licenses')),
-        TextButton(onPressed: () => launchUrlString('https://github.com/EdgeAlphix/EdgeDesk'),
+        TextButton(onPressed: () => launchUrl(Uri.parse('https://github.com/EdgeAlphix/EdgeDesk')),
           child: const Text('Source and patches')),
-        TextButton(onPressed: () => launchUrlString('https://edgealphix.com'),
+        TextButton(onPressed: () => launchUrl(Uri.parse('https://edgealphix.com')),
           child: const Text('EdgeAlphix website')),
       ]),
+      const SizedBox(height: 16),
+      Text('Powered by EdgeAlphix Global Network Infrastructure',
+        style: theme.textTheme.bodySmall),
     ],
   );
 }
