@@ -65,3 +65,11 @@ body(root/'src/common.rs', 'pub fn is_public(url: &str)', '    let _ = url;\n   
 body(root/'src/common.rs', 'fn test_is_public()', '        assert!(!is_public("https://api.edgedesk.edgealphix.com"));')
 rc=root/'flutter/windows/runner/Runner.rc'
 rc.write_text(rc.read_text().replace('RustDesk Remote Desktop','EdgeDesk Remote Desktop').replace('"ProductName", "RustDesk"','"ProductName", "EdgeDesk"'))
+
+# Distribution metadata follows the product branding; native binary names remain compatible.
+p = root / 'build.py'
+p.write_text(p.read_text().replace('Maintainer: rustdesk <info@rustdesk.com>', 'Maintainer: EdgeAlphix LLC <desk@edgealphix.com>').replace('Homepage: https://rustdesk.com', 'Homepage: https://github.com/EdgeAlphix/EdgeDesk'))
+p = root / 'flutter/linux/CMakeLists.txt'
+p.write_text(p.read_text().replace('com.carriez.flutter_hbb', 'com.edgealphix.desk'))
+p = root / 'flutter/windows/runner/Runner.rc'
+p.write_text(p.read_text().replace('Purslane Tech Pte. Ltd.', 'International Computing Group, LLC'))

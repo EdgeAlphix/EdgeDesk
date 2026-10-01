@@ -32,11 +32,11 @@ pkgs.stdenv.mkDerivation {{
   pname = "edgedesk";
   version = "{version}";
   src = pkgs.fetchurl {{
-    url = "https://github.com/EdgeAlphix/EdgeDesk/releases/download/v{version}-edgedesk.1/{deb.name}";
+    url = "https://github.com/EdgeAlphix/EdgeDesk/releases/download/{os.environ['SOURCE_REF']}/{deb.name}";
     sha256 = "{sha}";
   }};
-  nativeBuildInputs = with pkgs; [ autoPatchelfHook dpkg makeWrapper ];
-  buildInputs = with pkgs; [ gtk3 glib libGL alsa-lib libpulseaudio libva libvdpau libappindicator-gtk3 libnotify pam stdenv.cc.cc.lib xorg.libX11 xorg.libXfixes xorg.libXrandr xorg.libXtst xorg.libXcursor xorg.libXi xorg.libxcb xorg.libXext xdotool gst_all_1.gstreamer gst_all_1.gst-plugins-base gst_all_1.gst-plugins-good ];
+  nativeBuildInputs = with pkgs; [ autoPatchelfHook dpkg makeWrapper wrapGAppsHook3 ];
+  buildInputs = with pkgs; [ gtk3 glib libGL libepoxy libdrm libxkbcommon openssl alsa-lib libpulseaudio libva libvdpau libayatana-appindicator libnotify pam stdenv.cc.cc.lib xorg.libX11 xorg.libXfixes xorg.libXrandr xorg.libXtst xorg.libXcursor xorg.libXi xorg.libxcb xorg.libXext xdotool gst_all_1.gstreamer gst_all_1.gst-plugins-base gst_all_1.gst-plugins-good ];
   unpackPhase = "dpkg-deb -x $src .";
   installPhase = \'\'
     mkdir -p $out/lib/edgedesk $out/bin $out/share

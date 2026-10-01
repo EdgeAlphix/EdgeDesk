@@ -35,3 +35,6 @@ for p in ('flutter/lib/mobile/pages/settings_page.dart','flutter/lib/desktop/pag
     assert 'Source and patches' in t
 assert json.loads((root/'edgedesk/network.json').read_text())['relay_server']==''
 print('EdgeDesk policy, destinations, identifiers and license checks passed')
+
+assert 'rustdesk.com' not in (root / 'build.py').read_text()
+assert 'com.carriez' not in (root / 'flutter/linux/CMakeLists.txt').read_text()

@@ -58,6 +58,18 @@ jobs:
           VERSION: ${{ needs.detect.outputs.version }}
           SOURCE_REF: ${{ needs.detect.outputs.source-ref }}
         run: python3 edgedesk/package_release.py
+      - uses: cachix/install-nix-action@v31
+        with:
+          nix_path: nixpkgs=channel:nixos-25.11
+      - name: Build and verify Nix package from the matching DEB
+        env:
+          VERSION: ${{ needs.detect.outputs.version }}
+        run: |
+          nix-build --no-out-link --expr '(import ./release-packages/EdgeDesk-'"$VERSION"'.nix {}).overrideAttrs (_: { src = builtins.head (builtins.filter (p: builtins.match ".*-x86_64.deb" (toString p) != null) (map (n: ./release-packages + ("/" + n)) (builtins.attrNames (builtins.readDir ./release-packages)))); })' > nix-output-path
+          test -x "$(cat nix-output-path)/bin/edgedesk"
+          nix-store --export "$(cat nix-output-path)" | xz > "release-packages/EdgeDesk-$VERSION-x86_64.nar.xz"
+          cd release-packages
+          sha256sum EdgeDesk-*.nar.xz >> SHA256SUMS
       - name: Publish complete release
         env:
           GH_TOKEN: ${{ github.token }}
