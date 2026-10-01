@@ -73,3 +73,14 @@ p = root / 'flutter/linux/CMakeLists.txt'
 p.write_text(p.read_text().replace('com.carriez.flutter_hbb', 'com.edgealphix.desk'))
 p = root / 'flutter/windows/runner/Runner.rc'
 p.write_text(p.read_text().replace('Purslane Tech Pte. Ltd.', 'International Computing Group, LLC'))
+
+# Flatpak's app ID, source filename, bundle command and AppStream metadata agree.
+import json
+old = root / 'flatpak/com.rustdesk.RustDesk.metainfo.xml'
+old.unlink(missing_ok=True)
+shutil.copy(root / 'edgedesk/flatpak.metainfo.xml', root / 'flatpak/com.edgealphix.desk.metainfo.xml')
+p = root / 'flatpak/rustdesk.json'
+manifest = json.loads(p.read_text())
+commands = manifest['modules'][-1]['build-commands']
+commands.append('install -Dm644 com.edgealphix.desk.metainfo.xml /app/share/metainfo/com.edgealphix.desk.metainfo.xml')
+p.write_text(json.dumps(manifest, indent=2) + '\n')

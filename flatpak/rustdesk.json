@@ -4,7 +4,11 @@
   "runtime-version": "24.08",
   "sdk": "org.freedesktop.Sdk",
   "command": "rustdesk",
-  "cleanup": ["/include", "/lib/pkgconfig", "/share/gtk-doc"],
+  "cleanup": [
+    "/include",
+    "/lib/pkgconfig",
+    "/share/gtk-doc"
+  ],
   "rename-desktop-file": "rustdesk.desktop",
   "rename-icon": "rustdesk",
   "modules": [
@@ -12,7 +16,9 @@
     {
       "name": "xdotool",
       "no-autogen": true,
-      "make-install-args": ["PREFIX=${FLATPAK_DEST}"],
+      "make-install-args": [
+        "PREFIX=${FLATPAK_DEST}"
+      ],
       "sources": [
         {
           "type": "archive",
@@ -24,7 +30,9 @@
     {
       "name": "pam",
       "buildsystem": "autotools",
-      "config-opts": ["--disable-selinux"],
+      "config-opts": [
+        "--disable-selinux"
+      ],
       "sources": [
         {
           "type": "archive",
@@ -39,7 +47,8 @@
       "build-commands": [
         "bsdtar -Oxf rustdesk.deb data.tar.xz | bsdtar -xf -",
         "cp -r usr/* /app/",
-        "mkdir -p /app/bin && ln -s /app/share/rustdesk/rustdesk /app/bin/rustdesk"
+        "mkdir -p /app/bin && ln -s /app/share/rustdesk/rustdesk /app/bin/rustdesk",
+        "install -Dm644 com.edgealphix.desk.metainfo.xml /app/share/metainfo/com.edgealphix.desk.metainfo.xml"
       ],
       "sources": [
         {

@@ -38,3 +38,11 @@ print('EdgeDesk policy, destinations, identifiers and license checks passed')
 
 assert 'rustdesk.com' not in (root / 'build.py').read_text()
 assert 'com.carriez' not in (root / 'flutter/linux/CMakeLists.txt').read_text()
+
+import json
+manifest = json.loads((root / 'flatpak/rustdesk.json').read_text())
+assert manifest['id'] == 'com.edgealphix.desk'
+for source in manifest['modules'][-1]['sources']:
+    if source.get('path', '').endswith('.xml'):
+        assert (root / 'flatpak' / source['path']).is_file()
+assert 'com.rustdesk.RustDesk' not in (root / '.github/workflows/edgedesk-build.yml').read_text()

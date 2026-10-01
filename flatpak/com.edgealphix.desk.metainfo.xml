@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.edgealphix.desk</id>
+  <developer id="com.edgealphix"><name>International Computing Group, LLC</name></developer>
+  <launchable type="desktop-id">com.edgealphix.desk.desktop</launchable>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>AGPL-3.0-only</project_license>
+  <name>EdgeDesk</name>
+  <summary>Remote desktop access through EdgeAlphix nodes</summary>
+  <description><p>EdgeDesk is based on RustDesk and operated by EdgeAlphix LLC.</p></description>
+  <categories><category>Network</category><category>RemoteAccess</category></categories>
+  <url type="homepage">https://github.com/EdgeAlphix/EdgeDesk</url>
+  <url type="bugtracker">https://github.com/EdgeAlphix/EdgeDesk/issues</url>
+  <url type="vcs-browser">https://github.com/EdgeAlphix/EdgeDesk</url>
+  <content_rating type="oars-1.1"/>
+</component>
