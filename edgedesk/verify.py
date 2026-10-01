@@ -73,6 +73,7 @@ assert 'distro: ubuntu20.04' in build_workflow
 assert 'Start-Process -FilePath' in build_workflow and '-Wait -PassThru' in build_workflow
 assert 'bash edgedesk/sign_macos.sh' in build_workflow
 assert 'EDGEDESK_MACOS_P12_PASSWORD' in build_workflow
+assert 'security list-keychains -d user -s "$signing_dir/signing.keychain-db" "${keychains[@]}"' in (root / 'edgedesk/sign_macos.sh').read_text()
 assert 'Depends: libc6 (>= 2.31)' in (root / 'build.py').read_text()
 assert 'if (isMacOS) setState(() {});' in (root / 'flutter/lib/desktop/pages/desktop_home_page.dart').read_text()
 assert 's = s.replace("com.carriez.RustDesk", &crate::get_full_name());' in (root / 'src/platform/macos.rs').read_text()

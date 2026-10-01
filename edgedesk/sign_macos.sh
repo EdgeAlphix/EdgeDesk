@@ -3,11 +3,19 @@ set -euo pipefail
 umask 077
 
 signing_dir=$(mktemp -d)
-trap 'security delete-keychain "$signing_dir/signing.keychain-db" >/dev/null 2>&1 || true; rm -rf "$signing_dir"' EXIT
+keychains=()
+while IFS= read -r keychain; do
+    keychain="${keychain#*\"}"
+    keychain="${keychain%\"*}"
+    keychains+=("$keychain")
+done < <(security list-keychains -d user)
+trap 'security list-keychains -d user -s "${keychains[@]}" >/dev/null 2>&1; security delete-keychain "$signing_dir/signing.keychain-db" >/dev/null 2>&1 || true; rm -rf "$signing_dir"' EXIT
 printf '%s' "$EDGEDESK_MACOS_P12" | base64 -D > "$signing_dir/identity.p12"
 security create-keychain -p "$EDGEDESK_MACOS_P12_PASSWORD" "$signing_dir/signing.keychain-db"
 security unlock-keychain -p "$EDGEDESK_MACOS_P12_PASSWORD" "$signing_dir/signing.keychain-db"
-security import "$signing_dir/identity.p12" -k "$signing_dir/signing.keychain-db" -P "$EDGEDESK_MACOS_P12_PASSWORD" -T /usr/bin/codesign >/dev/null
+security import "$signing_dir/identity.p12" -k "$signing_dir/signing.keychain-db" -P "$EDGEDESK_MACOS_P12_PASSWORD" -t cert -f pkcs12 -T /usr/bin/codesign
 security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$EDGEDESK_MACOS_P12_PASSWORD" "$signing_dir/signing.keychain-db" >/dev/null
+security list-keychains -d user -s "$signing_dir/signing.keychain-db" "${keychains[@]}"
+security find-identity -p codesigning "$signing_dir/signing.keychain-db"
 codesign --force --deep --sign 'EdgeDesk Development' --keychain "$signing_dir/signing.keychain-db" --entitlements flutter/macos/Runner/Release.entitlements "$1"
 codesign --verify --deep --strict "$1"
