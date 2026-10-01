@@ -105,7 +105,7 @@ def apply(root):
     # Disable all runtime rustdesk.com destinations, including documentation links.
     for base in ('src', 'libs/hbb_common/src', 'flutter/lib', 'res'):
         for path in (root / base).rglob('*'):
-            if path.is_file() and path.suffix in {'.rs', '.dart', '.xml', '.plist', '.desktop', '.spec', '.txt', '.html'}:
+            if path.is_file() and path.suffix in {'.rs', '.dart', '.tis', '.xml', '.plist', '.desktop', '.spec', '.txt', '.html'}:
                 data = path.read_text()
                 data = re.sub(r'(?:https?://)?(?:[\w-]+\.)*rustdesk\.com(?:/[^\s\"\'<>)]*)?', SOURCE, data)
                 path.write_text(data)

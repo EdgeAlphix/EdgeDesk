@@ -42,6 +42,7 @@ for jobname, job in original['jobs'].items():
             step.setdefault('with',{})['ref'] = '${{ inputs.source-ref }}'
         if 'run' in step:
             step['run'] = step['run'].replace('RustDesk.app', 'EdgeDesk.app').replace('com.rustdesk.RustDesk', 'com.edgealphix.desk').replace('for name in rustdesk*??.rpm', 'for name in edgedesk*??.rpm')
+            step['run'] = step['run'].replace('python preprocess.py --arp -d ../../rustdesk', 'Rename-Item ../../rustdesk/rustdesk.exe EdgeDesk.exe\npython preprocess.py --arp --app-name EdgeDesk --manufacturer "International Computing Group, LLC" -d ../../rustdesk')
         if use.startswith('softprops/action-gh-release@'):
             files = step['with'].get('files','').replace('rustdesk-*.rpm', 'edgedesk-*.rpm').replace('res/rustdesk-', 'res/edgedesk-').replace('./appimage/rustdesk-', './appimage/edgedesk-')
             # Publish only in the final all-platform job, after corresponding source is ready.
@@ -55,6 +56,13 @@ for step in universal['steps']:
         values = step.get('with',{})
         if 'name' in values:
             values['name'] = values['name'].replace('${{ matrix.job.arch }}','universal')
+checks = {'build-for-windows-flutter': {'name': 'Verify Windows executable starts', 'shell': 'pwsh', 'run': '$version = & ./rustdesk/rustdesk.exe --version\nif ($LASTEXITCODE -ne 0 -or "$version" -notmatch [regex]::Escape("${{ env.VERSION }}")) { throw "EdgeDesk executable failed to report its version: $version" }\n'}, 'build-for-macOS': {'name': 'Verify macOS application identity and executable', 'shell': 'bash', 'run': 'app=flutter/build/macos/Build/Products/Release/EdgeDesk.app\ntest "$(/usr/libexec/PlistBuddy -c \'Print CFBundleIdentifier\' "$app/Contents/Info.plist")" = com.edgealphix.desk\n"$app/Contents/MacOS/EdgeDesk" --version | grep -F "${{ env.VERSION }}"\n'}}
+for name, check in checks.items():
+    steps = original["jobs"][name]["steps"]
+    index = next(i for i, step in enumerate(steps) if step.get("name") == "Build rustdesk")
+    steps.insert(index + 1, check)
+linux_build = next(step for step in original["jobs"]["build-rustdesk-linux"]["steps"] if step.get("name") == "Build rustdesk")
+linux_build["with"]["run"] = linux_build["with"]["run"].replace("python3 ./build.py --flutter --skip-cargo", 'python3 ./build.py --flutter --skip-cargo\n          binary=$(find /workspace/flutter/build/linux -path "*/release/bundle/edgedesk" -type f -print -quit)\n          test -n "$binary"\n          "$binary" --version | grep -F "${{ env.VERSION }}"')
 # Archive .app with symlinks preserved; .dmg remains available too.
 mac = original['jobs']['build-for-macOS']['steps']
 mac += [{'name':'Archive EdgeDesk application','shell':'bash','run':'ditto -c -k --sequesterRsrc --keepParent flutter/build/macos/Build/Products/Release/EdgeDesk.app EdgeDesk-${{ env.VERSION }}-${{ matrix.job.arch }}.app.zip'}, {'name':'Collect macOS app','uses':'actions/upload-artifact@v4','with':{'name':'package-macos-app-${{ matrix.job.arch }}','path':'EdgeDesk-*.app.zip','if-no-files-found':'error'}}]

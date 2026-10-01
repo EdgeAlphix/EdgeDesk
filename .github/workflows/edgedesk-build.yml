@@ -244,6 +244,11 @@ jobs:
         } catch {
             Write-Host "Ingore the printer driver error."
         }
+    - name: Verify Windows executable starts
+      shell: pwsh
+      run: |
+        $version = & ./rustdesk/rustdesk.exe --version
+        if ($LASTEXITCODE -ne 0 -or "$version" -notmatch [regex]::Escape("${{ env.VERSION }}")) { throw "EdgeDesk executable failed to report its version: $version" }
     - name: find Runner.res
       continue-on-error: true
       shell: bash
@@ -292,7 +297,8 @@ jobs:
       if: env.UPLOAD_ARTIFACT == 'true'
       run: |
         pushd ./res/msi
-        python preprocess.py --arp -d ../../rustdesk
+        Rename-Item ../../rustdesk/rustdesk.exe EdgeDesk.exe
+        python preprocess.py --arp --app-name EdgeDesk --manufacturer "International Computing Group, LLC" -d ../../rustdesk
         nuget restore msi.sln
         $msiPlatform = if ('${{ matrix.job.arch }}' -eq 'aarch64') { 'ARM64' } else { 'x64' }
         msbuild msi.sln -p:Configuration=Release -p:Platform=$msiPlatform /p:TargetVersion=Windows10
@@ -563,6 +569,12 @@ jobs:
           sed -i -e "s/MACOSX_DEPLOYMENT_TARGET = [0-9]*.[0-9]*;/MACOSX_DEPLOYMENT_TARGET = ${MIN_MACOS_VERSION};/" flutter/macos/Runner.xcodeproj/project.pbxproj
         fi
         ./build.py --flutter --hwcodec --unix-file-copy-paste ${{ matrix.job.extra-build-args }}
+    - name: Verify macOS application identity and executable
+      shell: bash
+      run: |
+        app=flutter/build/macos/Build/Products/Release/EdgeDesk.app
+        test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app/Contents/Info.plist")" = com.edgealphix.desk
+        "$app/Contents/MacOS/EdgeDesk" --version | grep -F "${{ env.VERSION }}"
     - name: create unsigned dmg
       if: env.UPLOAD_ARTIFACT == 'true'
       run: |
@@ -1289,6 +1301,9 @@ jobs:
           export CARGO_INCREMENTAL=0
           export DEB_ARCH=${{ matrix.job.deb_arch }}
           python3 ./build.py --flutter --skip-cargo
+                    binary=$(find /workspace/flutter/build/linux -path "*/release/bundle/edgedesk" -type f -print -quit)
+                    test -n "$binary"
+                    "$binary" --version | grep -F "${{ env.VERSION }}"
           for name in rustdesk*??.deb; do
             mv "$name" "${name%%.deb}-${{ matrix.job.arch }}.deb"
           done

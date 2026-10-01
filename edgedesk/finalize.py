@@ -133,3 +133,12 @@ for base in ('flutter/android', 'flutter/ios', 'flutter/macos'):
     for p in (root / base).rglob('*'):
         if p.is_file() and p.suffix in {'.xml', '.plist'}:
             p.write_text(p.read_text().replace('android:scheme="rustdesk"', 'android:scheme="edgedesk"').replace('<string>rustdesk</string>', '<string>edgedesk</string>'))
+
+# MSI uses upstream's custom-product support so its service matches APP_NAME.
+p = root / 'res/msi/preprocess.py'
+p.write_text(p.read_text().replace('https://github.com/rustdesk/rustdesk', 'https://github.com/EdgeAlphix/EdgeDesk'))
+license_text = (root / 'LICENCE').read_text()
+rtf = license_text.replace('\\', '\\\\').replace('{', '\\{').replace('}', '\\}').replace('\n', '\\par\n')
+(root / 'res/msi/Package/License.rtf').write_text('{\\rtf1\\ansi\\deff0 {\\fonttbl {\\f0 Arial;}}\\f0\\fs18\n' + rtf + '\n}')
+p = root / 'libs/portable/src/main.rs'
+p.write_text(p.read_text().replace('const APP_PREFIX: &str = "rustdesk";', 'const APP_PREFIX: &str = "edgedesk";'))

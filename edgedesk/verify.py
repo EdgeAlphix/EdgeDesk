@@ -55,4 +55,7 @@ for name in ('edgedesk.service', 'edgedesk.desktop', 'edgedesk-link.desktop', 'p
 assert (root / 'flutter/assets/logo.png').read_bytes() == (root / 'edgedesk/assets/wordmark.png').read_bytes()
 assert (root / 'flutter/assets/icon.png').read_bytes() == (root / 'edgedesk/assets/icon.png').read_bytes()
 assert (root / 'flutter/macos/Runner/AppIcon.icns').stat().st_size > 1000
+assert 'GNU AFFERO GENERAL PUBLIC LICENSE' in (root / 'res/msi/Package/License.rtf').read_text()
+assert '--app-name EdgeDesk --manufacturer "International Computing Group, LLC"' in (root / '.github/workflows/edgedesk-build.yml').read_text()
+assert 'const APP_PREFIX: &str = "edgedesk";' in (root / 'libs/portable/src/main.rs').read_text()
 print('EdgeDesk policy, destinations, identifiers and license checks passed')
