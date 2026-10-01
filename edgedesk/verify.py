@@ -34,12 +34,10 @@ for p in ('flutter/lib/mobile/pages/settings_page.dart','flutter/lib/desktop/pag
     assert 'International Computing Group, LLC' in t and 'EdgeAlphix LLC' in t and 'Anaheim, CA 92802' in t
     assert 'Source and patches' in t
 assert json.loads((root/'edgedesk/network.json').read_text())['relay_server']==''
-print('EdgeDesk policy, destinations, identifiers and license checks passed')
 
 assert 'rustdesk.com' not in (root / 'build.py').read_text()
 assert 'com.carriez' not in (root / 'flutter/linux/CMakeLists.txt').read_text()
 
-import json
 manifest = json.loads((root / 'flatpak/rustdesk.json').read_text())
 assert manifest['id'] == 'com.edgealphix.desk'
 for source in manifest['modules'][-1]['sources']:
@@ -53,3 +51,5 @@ assert 'ExecStart=/usr/bin/edgedesk --service' in (root / 'res/edgedesk.service'
 assert '/usr/share/edgedesk/edgedesk /usr/bin/edgedesk' in (root / 'res/DEBIAN/postinst').read_text()
 for name in ('edgedesk.service', 'edgedesk.desktop', 'edgedesk-link.desktop', 'pam.d/edgedesk.debian'):
     assert (root / 'res' / name).is_file()
+
+print('EdgeDesk policy, destinations, identifiers and license checks passed')

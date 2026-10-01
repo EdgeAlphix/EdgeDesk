@@ -27,6 +27,20 @@ jobs:
           flutter-version: 3.44.0
           artifact-name: bridge-artifact-flutter-3.44
     steps:
+    - name: Use official Ubuntu archive with bounded downloads
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        sudo python3 - <<'PYTHON'
+        from pathlib import Path
+        paths = [Path('/etc/apt/apt-mirrors.txt'), Path('/etc/apt/sources.list')]
+        paths += list(Path('/etc/apt/sources.list.d').glob('*'))
+        for path in paths:
+            if path.is_file():
+                data = path.read_text()
+                path.write_text(data.replace('http://azure.archive.ubuntu.com/ubuntu', 'https://archive.ubuntu.com/ubuntu'))
+        Path('/etc/apt/apt.conf.d/99-edgedesk-downloads').write_text('Acquire::http::Timeout "30";\nAcquire::https::Timeout "30";\nAcquire::Retries "3";\n')
+        PYTHON
     - name: Checkout source code
       uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
       with:
@@ -50,6 +64,7 @@ jobs:
           ninja-build \
           pkg-config \
           wget
+      timeout-minutes: 10
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
       with:

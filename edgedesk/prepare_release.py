@@ -25,7 +25,7 @@ upstream=release['tag_name']
 if release['draft'] or release['prerelease'] or not re.fullmatch(r'v?\d+\.\d+\.\d+(?:-\d+)?',upstream):
     raise RuntimeError('Only published stable version releases are accepted')
 version=upstream.removeprefix('v')
-tag=f'v{version}-edgedesk.4'
+tag=f'v{version}-edgedesk.5'
 existing=subprocess.run(['gh','release','view',tag,'--repo',repo,'--json','isDraft'],capture_output=True,text=True)
 if existing.returncode==0 and not json.loads(existing.stdout)['isDraft']:
     output(build='false',version=version,tag=tag)
@@ -49,7 +49,11 @@ with tempfile.TemporaryDirectory(prefix='edgedesk-release-') as directory:
     shutil.copy(root/'README.md',dst/'README.md')
     run('python3','edgedesk/verify.py',cwd=dst)
     (dst/'edgedesk/patches').mkdir(exist_ok=True)
-    (dst/'edgedesk/patches/client.patch').write_text(run('git','diff','--binary',cwd=dst,capture=True)+'\n')
+    # Include new files and binary artwork, excluding previous patch artifacts.
+    run('git','add','-A',cwd=dst)
+    run('git','add','-f','edgedesk/assets',cwd=dst)
+    run('git','reset','--','edgedesk/patches',cwd=dst)
+    (dst/'edgedesk/patches/client.patch').write_text(run('git','diff','--cached','--binary',cwd=dst,capture=True)+'\n')
     (dst/'edgedesk/patches/hbb-common.patch').write_text(run('git','diff','--binary',cwd=dst/'libs/hbb_common',capture=True)+'\n')
     # Vendor the modified dependency so GitHub source archives contain the actual code.
     run('git','rm','--cached','libs/hbb_common',cwd=dst)

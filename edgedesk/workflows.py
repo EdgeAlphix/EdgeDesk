@@ -13,6 +13,8 @@ class Dumper(yaml.SafeDumper):
 def string(dumper, value):
     return dumper.represent_scalar('tag:yaml.org,2002:str', value, style='|' if '\n' in value else None)
 Dumper.add_representer(str, string)
+
+mirror_step = {'name': 'Use official Ubuntu archive with bounded downloads', 'if': "runner.os == 'Linux'", 'shell': 'bash', 'run': 'sudo python3 - <<\'PYTHON\'\nfrom pathlib import Path\npaths = [Path(\'/etc/apt/apt-mirrors.txt\'), Path(\'/etc/apt/sources.list\')]\npaths += list(Path(\'/etc/apt/sources.list.d\').glob(\'*\'))\nfor path in paths:\n    if path.is_file():\n        data = path.read_text()\n        path.write_text(data.replace(\'http://azure.archive.ubuntu.com/ubuntu\', \'https://archive.ubuntu.com/ubuntu\'))\nPath(\'/etc/apt/apt.conf.d/99-edgedesk-downloads\').write_text(\'Acquire::http::Timeout "30";\\nAcquire::https::Timeout "30";\\nAcquire::Retries "3";\\n\')\nPYTHON\n'}
 root = Path(__file__).resolve().parent.parent
 wf = root / '.github/workflows'
 original = yaml.load((wf/'flutter-build.yml').read_text(), Loader=Loader)
@@ -33,7 +35,7 @@ for jobname, job in original['jobs'].items():
     if 'steps' not in job:
         continue
     job['timeout-minutes'] = 180
-    steps = []
+    steps = [mirror_step]
     for step in job['steps']:
         use = step.get('uses','')
         if use.startswith('actions/checkout@'):
@@ -73,9 +75,12 @@ for name in ('build-rustdesk-android','build-rustdesk-android-universal'):
 bridge = yaml.load((wf/'bridge.yml').read_text(), Loader=Loader)
 bridge['on']['workflow_call'] = {'inputs':{'source-ref':{'required':True,'type':'string'}}}
 for job in bridge['jobs'].values():
+    job['steps'].insert(0, mirror_step)
     for step in job.get('steps',[]):
         if step.get('uses','').startswith('actions/checkout@'):
             step.setdefault('with',{})['ref'] = '${{ inputs.source-ref }}'
+        if step.get('name') == 'Install prerequisites':
+            step['timeout-minutes'] = 10
         if step.get('name') == 'Run flutter rust bridge':
             step['run'] += '\ncd flutter && dart format --output=none --set-exit-if-changed lib/main.dart lib/common.dart lib/mobile/pages/settings_page.dart lib/desktop/pages/desktop_setting_page.dart || dart format lib/main.dart lib/common.dart lib/mobile/pages/settings_page.dart lib/desktop/pages/desktop_setting_page.dart\nflutter analyze --no-fatal-infos --no-fatal-warnings lib/main.dart lib/common.dart lib/mobile/pages/settings_page.dart lib/desktop/pages/desktop_setting_page.dart\n'
 third = yaml.load((wf/'third-party-RustDeskTempTopMostWindow.yml').read_text(), Loader=Loader)
