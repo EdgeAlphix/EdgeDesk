@@ -70,6 +70,7 @@ assert 'flatpak flatpak-builder appstream-compose' in build_workflow
 assert 'for name in rustdesk*??.rpm' not in build_workflow
 assert 'distro: ubuntu18.04' not in build_workflow
 assert 'distro: ubuntu20.04' in build_workflow
+assert 'libva-dev libdrm-dev' in build_workflow
 assert 'Start-Process -FilePath' in build_workflow and '-Wait -PassThru' in build_workflow
 assert 'bash edgedesk/sign_macos.sh' in build_workflow
 assert 'EDGEDESK_MACOS_P12_PASSWORD' in build_workflow

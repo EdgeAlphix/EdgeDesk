@@ -74,6 +74,7 @@ for name, check in checks.items():
 for job in original['jobs']['build-rustdesk-linux']['strategy']['matrix']['job']:
     job['distro'] = 'ubuntu20.04'
 linux_build = next(step for step in original["jobs"]["build-rustdesk-linux"]["steps"] if step.get("name") == "Build rustdesk")
+linux_build["with"]["install"] = linux_build["with"]["install"].replace("libva-dev", "libva-dev libdrm-dev")
 linux_build["with"]["run"] = linux_build["with"]["run"].replace("for name in rustdesk*??.rpm", "for name in edgedesk*??.rpm")
 linux_build["with"]["run"] = linux_build["with"]["run"].replace("python3 ./build.py --flutter --skip-cargo", 'python3 ./build.py --flutter --skip-cargo\n          binary=$(find /workspace/flutter/build/linux -path "*/release/bundle/edgedesk" -type f -print -quit)\n          test -n "$binary"\n          "$binary" --version | grep -F "${{ env.VERSION }}"')
 mac_steps = original["jobs"]["build-for-macOS"]["steps"]
