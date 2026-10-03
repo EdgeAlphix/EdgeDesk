@@ -163,9 +163,9 @@ for path in (root / 'flutter/windows').rglob('app_icon.ico'):
     img.save(path, format='ICO', sizes=[(16,16),(32,32),(48,48),(64,64),(128,128),(256,256)])
 for path in (root / 'res').glob('*.ico'):
     img.save(path, format='ICO', sizes=[(16,16),(32,32),(48,48),(64,64),(128,128),(256,256)])
-# SVG embeds the exact provided logo rather than approximating its geometry.
+# Application SVG uses the same square canvas and padding as the PNG icon.
 import base64
-svg = f'<svg xmlns="http://www.w3.org/2000/svg" width="{source.width}" height="{source.height}" viewBox="0 0 {source.width} {source.height}"><image width="{source.width}" height="{source.height}" href="data:image/png;base64,' + base64.b64encode((root/'edgedesk/assets/logo.png').read_bytes()).decode() + '"/></svg>'
+svg = f'<svg xmlns="http://www.w3.org/2000/svg" width="{img.width}" height="{img.height}" viewBox="0 0 {img.width} {img.height}"><image width="{img.width}" height="{img.height}" href="data:image/png;base64,' + base64.b64encode((root/'edgedesk/assets/icon.png').read_bytes()).decode() + '"/></svg>'
 (root / 'res/scalable.svg').write_text(svg)
 for path in (root/'flutter/assets').glob('*.svg'):
     if 'logo' in path.name.lower():

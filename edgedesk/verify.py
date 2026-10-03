@@ -117,6 +117,15 @@ if 'pam.d/edgedesk.debian' in (root / 'build.py').read_text():
 
 assert (root / 'flutter/assets/logo.png').read_bytes() == (root / 'edgedesk/assets/wordmark.png').read_bytes()
 assert (root / 'flutter/assets/icon.png').read_bytes() == (root / 'edgedesk/assets/icon.png').read_bytes()
+import base64
+import xml.etree.ElementTree as ET
+for path in ('res/scalable.svg', 'flutter/assets/icon.svg'):
+    svg = ET.parse(root / path).getroot()
+    icon_image = svg.find('{http://www.w3.org/2000/svg}image')
+    assert svg.get('width') == svg.get('height') == '1024', f'Application icon must be square: {path}'
+    assert svg.get('viewBox') == '0 0 1024 1024'
+    assert icon_image is not None
+    assert base64.b64decode(icon_image.get('href').split(',', 1)[1]) == (root / 'edgedesk/assets/icon.png').read_bytes()
 assert (root / 'flutter/macos/Runner/AppIcon.icns').stat().st_size > 1000
 assert 'GNU AFFERO GENERAL PUBLIC LICENSE' in (root / 'res/msi/Package/License.rtf').read_text()
 assert '--app-name EdgeDesk --manufacturer "International Computing Group, LLC"' in (root / '.github/workflows/edgedesk-build.yml').read_text()
