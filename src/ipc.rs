@@ -3,10 +3,22 @@ mod ipc_auth;
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 #[path = "ipc/fs.rs"]
 mod ipc_fs;
+// The DRM/KMS capture producer, the `_drm` channel and its SCM_RIGHTS framing live in their own
+// module, declared the same way as the other pieces of this file, so the opt-in feature adds a
+// bounded, self-contained surface here instead of ~1800 lines in the middle of the shared IPC.
+#[cfg(all(target_os = "linux", feature = "drm"))]
+#[path = "ipc/drm.rs"]
+mod ipc_drm;
+// Re-exported so the paths callers already use (`crate::ipc::start_drm`, `crate::ipc::connect_drm`,
+// `crate::ipc::DrmDisplayInfo`) keep working, and so the `Data` variants can name the two
+// payload types.
+#[cfg(all(target_os = "linux", feature = "drm"))]
+pub use ipc_drm::{start_drm, DmabufDesc, DrmDisplayInfo};
+#[cfg(all(target_os = "linux", feature = "drm"))]
+pub(crate) use ipc_drm::DrmConn;
+#[cfg(all(target_os = "linux", feature = "drm"))]
+pub(crate) use ipc_drm::connect_drm;
 
-#[cfg(all(feature = "flutter", feature = "plugin_framework"))]
-#[cfg(not(any(target_os = "android", target_os = "ios")))]
-use crate::plugin::ipc::Plugin;
 use crate::{
     common::{is_server, CheckTestNatType},
     privacy_mode,
@@ -22,7 +34,7 @@ use hbb_common::anyhow;
 use hbb_common::{
     allow_err, bail, bytes,
     bytes_codec::BytesCodec,
-    config::{self, keys::OPTION_ALLOW_WEBSOCKET, Config, Config2},
+    config::{self, Config, Config2},
     futures::StreamExt as _,
     futures_util::sink::SinkExt,
     log, password_security as password, timeout,
@@ -33,6 +45,7 @@ use hbb_common::{
     tokio_util::codec::Framed,
     ResultType,
 };
+use base::config::keys::{self, OPTION_ALLOW_WEBSOCKET};
 #[cfg(windows)]
 pub(crate) use ipc_auth::authorize_windows_portable_service_ipc_connection;
 #[cfg(windows)]
@@ -41,6 +54,8 @@ pub(crate) use ipc_auth::ensure_peer_executable_matches_current_by_pid_opt;
 pub(crate) use ipc_auth::log_rejected_windows_ipc_connection;
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 use ipc_auth::{active_uid, authorize_service_scoped_ipc_connection};
+#[cfg(target_os = "macos")]
+use ipc_auth::authorize_user_server_process;
 #[cfg(windows)]
 use ipc_auth::{
     authorize_windows_main_ipc_connection, portable_service_listener_security_attributes,
@@ -58,6 +73,9 @@ use ipc_fs::{
     check_pid, ensure_secure_ipc_parent_dir, scrub_secure_ipc_parent_dir,
     should_scrub_parent_entries_after_check_pid, write_pid,
 };
+// Gated with the module that uses it, so a `drm`-less build does not carry an unused import.
+#[cfg(all(target_os = "linux", feature = "drm"))]
+use ipc_fs::remove_ipc_entry_via_secure_parent_fd;
 use parity_tokio_ipc::{
     Connection as Conn, ConnectionClient as ConnClient, Endpoint, Incoming, SecurityAttributes,
 };
@@ -292,6 +310,14 @@ pub enum DataPortableService {
     CmShowElevation(bool),
 }
 
+#[cfg(feature = "flutter")]
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
+pub enum SwitchSidesUuidAction {
+    Check,
+    Consume,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "t", content = "c")]
 pub enum Data {
@@ -367,7 +393,7 @@ pub enum Data {
     SwitchSidesRequest(String),
     #[cfg(feature = "flutter")]
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
-    SwitchSidesUuid(String, String, Option<bool>),
+    SwitchSidesUuid(String, String, SwitchSidesUuidAction, Option<bool>),
     #[cfg(feature = "flutter")]
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     SwitchSidesBack,
@@ -376,9 +402,6 @@ pub enum Data {
     StartVoiceCall,
     VoiceCallResponse(bool),
     CloseVoiceCall(String),
-    #[cfg(all(feature = "flutter", feature = "plugin_framework"))]
-    #[cfg(not(any(target_os = "android", target_os = "ios")))]
-    Plugin(Plugin),
     #[cfg(windows)]
     SyncWinCpuUsage(Option<f64>),
     FileTransferLog((String, String)),
@@ -472,11 +495,97 @@ pub enum Data {
     #[cfg(target_os = "windows")]
     PortForwardSessionCount(Option<usize>),
     SocksWs(Option<Box<(Option<config::Socks5Server>, String)>>),
+    #[cfg(target_os = "macos")]
+    HasNoActiveConns(Option<bool>),
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     Whiteboard((String, crate::whiteboard::CustomEvent)),
     ControlPermissionsRemoteModify(Option<bool>),
     #[cfg(target_os = "windows")]
     FileTransferEnabledState(Option<bool>),
+    /// CM -> server: the connection manager's WINDOW went away, which is not the same event
+    /// as the operator disconnecting a peer. Linux only, and deliberately: there a session
+    /// logout closes every window, and the close arrives at the CM indistinguishable from a
+    /// person clicking it - measured on KDE, the CM gets no signal and logind still reports the
+    /// session active. So the ambiguous case ends the session WITHOUT the no-retry reason and
+    /// the peer is allowed to reconnect (landing on the greeter after a logout), while the
+    /// explicit Disconnect button keeps sending `Close` and kicking for good.
+    #[cfg(target_os = "linux")]
+    CmWindowClosed,
+    // --- DRM/KMS capture (opt-in `drm` feature) over the `_drm` service-scoped channel ---
+    // All of the following are `cfg(all(linux, drm))`, so the drm-off IPC wire is byte-identical
+    // to upstream. Protocol on `_drm`: on connect the root service sends `DrmDisplayList`, the
+    // client replies `DrmStart{display}`, then the service streams `DrmFrame` + send_raw(BGRA) and
+    // `DrmCursor` + send_raw(RGBA). A frame/cursor header is ALWAYS immediately followed by exactly
+    // one `send_raw()` payload (the same header-then-raw pairing as `FileBlockFromCM`). This keeps
+    // the header extensible. The zero-copy `DrmFrameDmabuf(DmabufDesc)` sibling below carries only a
+    // small JSON metadata descriptor; the scanout dma-buf fd rides an SCM_RIGHTS ancillary message on
+    // the same `DrmConn` send (see `DrmConn::send_msg`), so it has NO trailing `send_raw()` body.
+    /// Client -> service: begin streaming the chosen display.
+    #[cfg(all(target_os = "linux", feature = "drm"))]
+    // `need_cpu` is set by an unprivileged consumer that could not open a render-node convert context
+    // (drmtap_open_render failed, e.g. no /dev/dri/renderD* access). The service then streams the
+    // CPU-converted `DrmFrame` path for this connection instead of a dma-buf fd the consumer cannot
+    // detile, so a render-node-less seat still captures instead of losing the stream.
+    DrmStart { display: i32, need_cpu: bool },
+    /// Service -> client: the enumerated DRM displays (sent once, before frames).
+    #[cfg(all(target_os = "linux", feature = "drm"))]
+    DrmDisplayList(Vec<DrmDisplayInfo>),
+    /// Service -> client: the connector topology changed mid-stream (a monitor hotplug/unplug/modeset,
+    /// observed by the service's udev DRM-uevent listener). Carries the freshly-enumerated list so the
+    /// consumer can swap its sticky positive availability cache off the hot path, WITHOUT re-probing
+    /// `_drm` (which would trip the enumeration restart loop). Interleaved with frames on the same
+    /// stream; carries no `send_raw()` body and no fd.
+    #[cfg(all(target_os = "linux", feature = "drm"))]
+    DrmDisplaysChanged(Vec<DrmDisplayInfo>),
+    /// Service -> client: a frame header; the packed BGRA pixels follow via `send_raw()`.
+    /// CPU-fallback path (no render node, or no transferable dma-buf): pixels cross the wire.
+    #[cfg(all(target_os = "linux", feature = "drm"))]
+    DrmFrame {
+        width: u32,
+        height: u32,
+        /// See `DmabufDesc::plane_rotation`; absent from a producer older than this field.
+        #[serde(default)]
+        plane_rotation: Option<u32>,
+        /// See `DmabufDesc::cursor_pos`: the cursor plane position read right after this frame,
+        /// or `None` when the cursor is hidden, the read failed or the producer predates the field.
+        #[serde(default)]
+        cursor_pos: Option<(i32, i32)>,
+    },
+    /// Service -> client: a zero-copy dma-buf frame descriptor. The scanout fd is NOT a field; when
+    /// `desc.has_fd` it rides an SCM_RIGHTS ancillary message on the same `DrmConn::send_msg`, and
+    /// there is NO trailing `send_raw()` body. The unprivileged `--server` imports the fd and does
+    /// the EGL detile/convert itself (see `DmabufDesc`).
+    #[cfg(all(target_os = "linux", feature = "drm"))]
+    DrmFrameDmabuf(DmabufDesc),
+    /// Service -> client: a hardware-cursor header; the RGBA pixels follow via `send_raw()`.
+    #[cfg(all(target_os = "linux", feature = "drm"))]
+    DrmCursor {
+        id: u64,
+        width: u32,
+        height: u32,
+        hotx: i32,
+        hoty: i32,
+        /// Whether the hotspot came from the driver, or was inferred from the bitmap.
+        ///
+        /// Absent means the producer predates the field, and the default must then be TRUE, not
+        /// `bool::default()`. These messages are JSON over a unix socket between two processes
+        /// that are upgraded separately: an old root service can be streaming to a freshly
+        /// started `--server`, and its `{"hotx": 12, "hoty": 11}` carries no provenance. Read as
+        /// `false`, the new consumer would throw that hotspot away and re-infer one from the
+        /// upright bitmap, moving the cursor on a rotated display for the length of the upgrade.
+        /// Defaulting to true means "no provenance available, so behave as the old protocol did"
+        /// -- use the point the producer sent. It is not a claim that the value was measured; a
+        /// new producer that wants re-inference says `hot_measured: false` explicitly, which
+        /// serializes, so new-to-new is unaffected.
+        #[serde(default = "legacy_hot_measured")]
+        hot_measured: bool,
+    },
+}
+
+/// The default for a `hot_measured` that is not on the wire at all; see the field's docs.
+#[cfg(all(target_os = "linux", feature = "drm"))]
+fn legacy_hot_measured() -> bool {
+    true
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -674,9 +783,9 @@ impl CheckIfRestart {
             audio_input: Config::get_option("audio-input"),
             voice_call_input: Config::get_option("voice-call-input"),
             ws: Config::get_option(OPTION_ALLOW_WEBSOCKET),
-            disable_udp: Config::get_option(config::keys::OPTION_DISABLE_UDP),
+            disable_udp: Config::get_option(keys::OPTION_DISABLE_UDP),
             allow_insecure_tls_fallback: Config::get_option(
-                config::keys::OPTION_ALLOW_INSECURE_TLS_FALLBACK,
+                keys::OPTION_ALLOW_INSECURE_TLS_FALLBACK,
             ),
             api_server: Config::get_option("api-server"),
         }
@@ -688,12 +797,12 @@ impl Drop for CheckIfRestart {
         // No need to check if https proxy is used, because this option does not change frequently
         // and restarting mediator is safe even https proxy is not used.
         let allow_insecure_tls_fallback_changed = self.allow_insecure_tls_fallback
-            != Config::get_option(config::keys::OPTION_ALLOW_INSECURE_TLS_FALLBACK);
+            != Config::get_option(keys::OPTION_ALLOW_INSECURE_TLS_FALLBACK);
         if allow_insecure_tls_fallback_changed
             || self.stop_service != Config::get_option("stop-service")
             || self.rendezvous_servers != Config::get_rendezvous_servers()
             || self.ws != Config::get_option(OPTION_ALLOW_WEBSOCKET)
-            || self.disable_udp != Config::get_option(config::keys::OPTION_DISABLE_UDP)
+            || self.disable_udp != Config::get_option(keys::OPTION_DISABLE_UDP)
             || self.api_server != Config::get_option("api-server")
         {
             if allow_insecure_tls_fallback_changed {
@@ -881,8 +990,14 @@ async fn handle(data: Data, stream: &mut Connection) {
             Some(value) => {
                 let mut updated = true;
                 if name == "id" {
-                    Config::set_key_confirmed(false);
-                    Config::set_id(&value);
+                    // An empty id would wipe the local id and unconfirm the key (cf. #15626).
+                    if value.is_empty() {
+                        log::warn!("Ignoring empty id write over IPC");
+                        updated = false;
+                    } else {
+                        Config::set_key_confirmed(false);
+                        Config::set_id(&value);
+                    }
                 } else if name == "temporary-password" {
                     password::update_temporary_password();
                 } else if name == "permanent-password" {
@@ -951,7 +1066,7 @@ async fn handle(data: Data, stream: &mut Connection) {
             allow_err!(
                 stream
                     .send(&Data::SyncWinCpuUsage(
-                        hbb_common::platform::windows::cpu_uage_one_minute()
+                        base::platform::windows::cpu_uage_one_minute()
                     ))
                     .await
             );
@@ -968,6 +1083,7 @@ async fn handle(data: Data, stream: &mut Connection) {
         Data::SwitchSidesRequest(id) => {
             let uuid = uuid::Uuid::new_v4();
             crate::server::insert_switch_sides_uuid(id, uuid.clone());
+            crate::hbbs_http::sync::register_switch_grant(uuid.to_string());
             allow_err!(
                 stream
                     .send(&Data::SwitchSidesRequest(uuid.to_string()))
@@ -976,20 +1092,24 @@ async fn handle(data: Data, stream: &mut Connection) {
         }
         #[cfg(feature = "flutter")]
         #[cfg(not(any(target_os = "android", target_os = "ios")))]
-        Data::SwitchSidesUuid(uuid, id, None) => {
+        Data::SwitchSidesUuid(uuid, id, action, None) => {
             let allowed = uuid
                 .parse::<uuid::Uuid>()
-                .map(|uuid| crate::server::remove_pending_switch_sides_uuid(&id, &uuid))
+                .map(|uuid| match action {
+                    SwitchSidesUuidAction::Check => {
+                        crate::server::has_pending_switch_sides_uuid(&id, &uuid)
+                    }
+                    SwitchSidesUuidAction::Consume => {
+                        crate::server::claim_pending_switch_sides_uuid(&id, &uuid)
+                    }
+                })
                 .unwrap_or(false);
             allow_err!(
                 stream
-                    .send(&Data::SwitchSidesUuid(uuid, id, Some(allowed)))
+                    .send(&Data::SwitchSidesUuid(uuid, id, action, Some(allowed)))
                     .await
             );
         }
-        #[cfg(all(feature = "flutter", feature = "plugin_framework"))]
-        #[cfg(not(any(target_os = "android", target_os = "ios")))]
-        Data::Plugin(plugin) => crate::plugin::ipc::handle_plugin(plugin, stream).await,
         #[cfg(windows)]
         Data::ControlledSessionCount(_) => {
             allow_err!(
@@ -997,6 +1117,16 @@ async fn handle(data: Data, stream: &mut Connection) {
                     .send(&Data::ControlledSessionCount(
                         crate::Connection::alive_conns().len()
                     ))
+                    .await
+            );
+        }
+        #[cfg(target_os = "macos")]
+        Data::HasNoActiveConns(None) => {
+            allow_err!(
+                stream
+                    .send(&Data::HasNoActiveConns(Some(
+                        crate::updater::has_no_active_conns()
+                    )))
                     .await
             );
         }
@@ -1128,7 +1258,7 @@ async fn handle(data: Data, stream: &mut Connection) {
             let state = crate::server::get_control_permission_state(Permission::file, false);
             let enabled = state.unwrap_or_else(|| {
                 crate::server::Connection::is_permission_enabled_locally(
-                    config::keys::OPTION_ENABLE_FILE_TRANSFER,
+                    keys::OPTION_ENABLE_FILE_TRANSFER,
                 )
             });
             allow_err!(
@@ -1334,14 +1464,21 @@ pub async fn connect(ms_timeout: u64, postfix: &str) -> ResultType<ConnectionTmp
     }
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 pub async fn connect_for_uid(
     ms_timeout: u64,
     uid: u32,
     postfix: &str,
 ) -> ResultType<ConnectionTmpl<ConnClient>> {
     let path = Config::ipc_path_for_uid(uid, postfix);
-    connect_with_path(ms_timeout, &path).await
+    let conn = connect_with_path(ms_timeout, &path).await?;
+    #[cfg(target_os = "macos")]
+    if postfix.is_empty()
+        && !authorize_user_server_process(conn.peer_uid(), conn.peer_pid(), uid)
+    {
+        bail!("Rejected user IPC peer for uid {}", uid);
+    }
+    Ok(conn)
 }
 
 #[cfg(target_os = "linux")]
@@ -1390,7 +1527,13 @@ pub async fn start_pa() {
                                 None, // Use default buffering attributes
                             ) {
                                 Ok(s) => loop {
-                                    if let Ok(_) = s.read(&mut buf) {
+                                    // A dead pulse handle fails every read at once, so ignoring the
+                                    // error left nothing pacing this loop and it burned a core.
+                                    if let Err(err) = s.read(&mut buf) {
+                                        log::error!("Failed to read audio data:{}", err);
+                                        break;
+                                    }
+                                    {
                                         let out =
                                             if buf.iter().filter(|x| **x != 0).next().is_none() {
                                                 vec![]
@@ -1689,19 +1832,24 @@ pub fn clear_trusted_devices() {
 }
 
 pub fn get_id() -> String {
+    // An empty id may come from a process that took over the main IPC with a
+    // config scope that has no id yet (e.g. a user GUI that became the server
+    // while the installed service was restarting). Treat it as no answer,
+    // otherwise the empty id is adopted below and wipes the local one.
     if let Ok(Some(v)) = get_config("id") {
-        // update salt also, so that next time reinstallation not causing first-time auto-login failure
-        if let Ok(Some(v2)) = get_config("salt") {
-            Config::set_salt(&v2);
+        if !v.is_empty() {
+            // update salt also, so that next time reinstallation not causing first-time auto-login failure
+            if let Ok(Some(v2)) = get_config("salt") {
+                Config::set_salt(&v2);
+            }
+            if v != Config::get_id() {
+                Config::set_key_confirmed(false);
+                Config::set_id(&v);
+            }
+            return v;
         }
-        if v != Config::get_id() {
-            Config::set_key_confirmed(false);
-            Config::set_id(&v);
-        }
-        v
-    } else {
-        Config::get_id()
     }
+    Config::get_id()
 }
 
 pub async fn get_rendezvous_server(ms_timeout: u64) -> (String, Vec<String>) {
@@ -2191,5 +2339,109 @@ mod test {
     #[test]
     fn test_select_server_uid_fails_when_multiple_servers_are_ambiguous() {
         assert!(select_server_uid_for_user_main_ipc(&[501, 502], None, false).is_err());
+    }
+
+    /// The upgrade window: an old root service is still streaming when a new `--server` starts,
+    /// and its DrmCursor carries no `hot_measured` at all. Read as `false` the consumer would
+    /// discard a hotspot the producer did measure and re-infer one from the bitmap, which moves
+    /// the cursor on a rotated display until the old process is replaced. `bool::default()` is
+    /// the wrong default here; the right one preserves what the old protocol meant.
+    #[cfg(all(target_os = "linux", feature = "drm"))]
+    #[test]
+    fn a_drm_cursor_without_provenance_keeps_the_hotspot_the_producer_sent() {
+        // `Data` is adjacently tagged (`tag = "t", content = "c"`), so this is the real shape on
+        // the socket, not a simplified one.
+        let legacy =
+            r#"{"t":"DrmCursor","c":{"id":7,"width":24,"height":24,"hotx":12,"hoty":11}}"#;
+        let msg: Data = serde_json::from_str(legacy).expect("legacy DrmCursor must deserialize");
+        match msg {
+            Data::DrmCursor {
+                hotx,
+                hoty,
+                hot_measured,
+                ..
+            } => {
+                assert_eq!((hotx, hoty), (12, 11));
+                assert!(
+                    hot_measured,
+                    "a message with no provenance field must be treated as the old protocol did, \
+                     i.e. use the hotspot as sent, not re-infer it"
+                );
+            }
+            other => panic!("expected DrmCursor, got {other:?}"),
+        }
+
+        // And a NEW producer that really wants re-inference says so, which serializes: the
+        // default must not swallow an explicit false.
+        let modern = r#"{"t":"DrmCursor","c":{"id":7,"width":24,"height":24,"hotx":0,"hoty":0,"hot_measured":false}}"#;
+        match serde_json::from_str::<Data>(modern).expect("modern DrmCursor must deserialize") {
+            Data::DrmCursor { hot_measured, .. } => assert!(!hot_measured),
+            other => panic!("expected DrmCursor, got {other:?}"),
+        }
+    }
+
+    /// A frame from a producer that predates the plane rotation reads as `None`, in the cpu frame
+    /// header and in the dma-buf descriptor: the root service and the `--server` are upgraded
+    /// separately, and `None` keeps the previous rule.
+    #[cfg(all(target_os = "linux", feature = "drm"))]
+    #[test]
+    fn a_frame_without_a_plane_rotation_reads_as_none() {
+        let legacy = r#"{"t":"DrmFrame","c":{"width":8,"height":8}}"#;
+        match serde_json::from_str::<Data>(legacy).expect("legacy DrmFrame must deserialize") {
+            Data::DrmFrame { plane_rotation, .. } => assert_eq!(plane_rotation, None),
+            other => panic!("expected DrmFrame, got {other:?}"),
+        }
+        let modern = r#"{"t":"DrmFrame","c":{"width":8,"height":8,"plane_rotation":4}}"#;
+        match serde_json::from_str::<Data>(modern).expect("modern DrmFrame must deserialize") {
+            Data::DrmFrame { plane_rotation, .. } => assert_eq!(plane_rotation, Some(4)),
+            other => panic!("expected DrmFrame, got {other:?}"),
+        }
+        let desc = DmabufDesc {
+            buffer_id: 0,
+            width: 4,
+            height: 4,
+            format: 0,
+            modifier: 0,
+            fb_id: 0,
+            num_planes: 1,
+            offsets: [0; 4],
+            pitches: [16, 0, 0, 0],
+            hdr_eotf: 0,
+            hdr_max_nits: 0,
+            has_fd: false,
+            plane_rotation: Some(4),
+            cursor_pos: None,
+        };
+        let mut value = serde_json::to_value(&desc).unwrap();
+        assert!(value.as_object_mut().unwrap().remove("plane_rotation").is_some());
+        let legacy: DmabufDesc =
+            serde_json::from_value(value).expect("legacy DmabufDesc must deserialize");
+        assert_eq!(legacy.plane_rotation, None);
+    }
+
+    /// A frame header from a producer that predates the cursor plane position reads as `None`;
+    /// a producer that sends one is read back exactly. A pin, not a gate: the consumer only ever
+    /// measures against `Some`.
+    #[cfg(all(target_os = "linux", feature = "drm"))]
+    #[test]
+    fn a_drm_frame_without_a_cursor_position_reads_as_none() {
+        let legacy = r#"{"t":"DrmFrame","c":{"width":8,"height":8}}"#;
+        match serde_json::from_str::<Data>(legacy).expect("legacy DrmFrame must deserialize") {
+            Data::DrmFrame {
+                width,
+                height,
+                cursor_pos,
+                ..
+            } => {
+                assert_eq!((width, height), (8, 8));
+                assert_eq!(cursor_pos, None);
+            }
+            other => panic!("expected DrmFrame, got {other:?}"),
+        }
+        let modern = r#"{"t":"DrmFrame","c":{"width":8,"height":8,"cursor_pos":[3,4]}}"#;
+        match serde_json::from_str::<Data>(modern).expect("modern DrmFrame must deserialize") {
+            Data::DrmFrame { cursor_pos, .. } => assert_eq!(cursor_pos, Some((3, 4))),
+            other => panic!("expected DrmFrame, got {other:?}"),
+        }
     }
 }
