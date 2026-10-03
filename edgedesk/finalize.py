@@ -256,7 +256,8 @@ p.write_text(json.dumps(manifest, indent=2) + '\n')
 
 # Linux service control derives its name from APP_NAME, so installed paths must agree.
 linux_files = list((root / 'res/DEBIAN').glob('*')) + list((root / 'res').glob('*.spec'))
-linux_files += [root / 'res/PKGBUILD', root / 'res/pacman_install', root / 'res/startwm.sh']
+linux_files += [root / 'res/PKGBUILD', root / 'res/pacman_install']
+linux_files += list((root / 'res').glob('startwm.sh'))
 for name in ('rustdesk.service', 'rustdesk.desktop', 'rustdesk-link.desktop'):
     path = root / 'res' / name
     target = path.with_name(name.replace('rustdesk', 'edgedesk'))
@@ -278,8 +279,8 @@ p.write_text(data)
 for path in (root / 'appimage').glob('*.yml'):
     path.write_text(path.read_text().replace('rustdesk', 'edgedesk').replace('edgedesk.deb', 'rustdesk.deb'))
 
-p = root / 'res/pam.d/rustdesk.debian'
-p.rename(p.with_name('edgedesk.debian'))
+for p in (root / 'res/pam.d').glob('rustdesk.debian'):
+    p.rename(p.with_name('edgedesk.debian'))
 for p in (root / 'res').glob('*.spec'):
     p.write_text(re.sub(r'^Vendor:.*$', 'Vendor:     EdgeAlphix LLC', p.read_text(), flags=re.M))
 

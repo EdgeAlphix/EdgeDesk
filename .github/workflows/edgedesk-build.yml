@@ -36,6 +36,7 @@ env:
   MACOS_P12_BASE64: ${{ secrets.MACOS_P12_BASE64 }}
   UPLOAD_ARTIFACT: ${{ inputs.upload-artifact }}
   SIGN_BASE_URL: ${{ secrets.SIGN_BASE_URL }}-2
+  VCPKG_CMAKE_VERSION: 4.3.0
 jobs:
   generate-bridge:
     uses: ./.github/workflows/edgedesk-bridge.yml
@@ -175,6 +176,21 @@ jobs:
     - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32
       with:
         prefix-key: ${{ matrix.job.os }}
+    - name: Use dependency baseline from release source
+      shell: bash
+      run: |
+        python - <<'BASELINE'
+        import json
+        import os
+        import re
+        from pathlib import Path
+        manifest = json.loads(Path('vcpkg.json').read_text())
+        baseline = manifest['vcpkg-configuration']['default-registry']['baseline']
+        if not re.fullmatch('[0-9a-f]{40}', baseline):
+            raise ValueError('Invalid vcpkg baseline')
+        with open(os.environ['GITHUB_ENV'], 'a') as output:
+            output.write(f'VCPKG_COMMIT_ID={baseline}\n')
+        BASELINE
     - name: Setup vcpkg with Github Actions binary cache
       uses: lukka/run-vcpkg@b1a0dd252f06b9e25b3c022a9a03bd7a427fb6a2
       with:
@@ -360,6 +376,21 @@ jobs:
       run: |
         cd $(dirname $(dirname $(which flutter)))
         [[ "3.24.5" == ${{env.FLUTTER_VERSION}} ]] && git apply ${{ github.workspace }}/.github/patches/flutter_3.24.4_dropdown_menu_enableFilter.diff
+    - name: Use dependency baseline from release source
+      shell: bash
+      run: |
+        python - <<'BASELINE'
+        import json
+        import os
+        import re
+        from pathlib import Path
+        manifest = json.loads(Path('vcpkg.json').read_text())
+        baseline = manifest['vcpkg-configuration']['default-registry']['baseline']
+        if not re.fullmatch('[0-9a-f]{40}', baseline):
+            raise ValueError('Invalid vcpkg baseline')
+        with open(os.environ['GITHUB_ENV'], 'a') as output:
+            output.write(f'VCPKG_COMMIT_ID={baseline}\n')
+        BASELINE
     - name: Setup vcpkg with Github Actions binary cache
       uses: lukka/run-vcpkg@b1a0dd252f06b9e25b3c022a9a03bd7a427fb6a2
       with:
@@ -531,6 +562,21 @@ jobs:
       with:
         name: bridge-artifact
         path: ./
+    - name: Use dependency baseline from release source
+      shell: bash
+      run: |
+        python - <<'BASELINE'
+        import json
+        import os
+        import re
+        from pathlib import Path
+        manifest = json.loads(Path('vcpkg.json').read_text())
+        baseline = manifest['vcpkg-configuration']['default-registry']['baseline']
+        if not re.fullmatch('[0-9a-f]{40}', baseline):
+            raise ValueError('Invalid vcpkg baseline')
+        with open(os.environ['GITHUB_ENV'], 'a') as output:
+            output.write(f'VCPKG_COMMIT_ID={baseline}\n')
+        BASELINE
     - name: Setup vcpkg with Github Actions binary cache
       uses: lukka/run-vcpkg@b1a0dd252f06b9e25b3c022a9a03bd7a427fb6a2
       with:
@@ -733,6 +779,21 @@ jobs:
       with:
         ndk-version: ${{ env.NDK_VERSION }}
         add-to-path: true
+    - name: Use dependency baseline from release source
+      shell: bash
+      run: |
+        python - <<'BASELINE'
+        import json
+        import os
+        import re
+        from pathlib import Path
+        manifest = json.loads(Path('vcpkg.json').read_text())
+        baseline = manifest['vcpkg-configuration']['default-registry']['baseline']
+        if not re.fullmatch('[0-9a-f]{40}', baseline):
+            raise ValueError('Invalid vcpkg baseline')
+        with open(os.environ['GITHUB_ENV'], 'a') as output:
+            output.write(f'VCPKG_COMMIT_ID={baseline}\n')
+        BASELINE
     - name: Setup vcpkg with Github Actions binary cache
       uses: lukka/run-vcpkg@b1a0dd252f06b9e25b3c022a9a03bd7a427fb6a2
       with:
@@ -1137,6 +1198,29 @@ jobs:
       with:
         name: bridge-artifact
         path: ./
+    - name: Install CMake for vcpkg on Linux ARM64
+      if: matrix.job.arch == 'aarch64' && env.UPLOAD_ARTIFACT == 'true'
+      shell: bash
+      run: |
+        python3 -m pip install --user "cmake==${VCPKG_CMAKE_VERSION}"
+        user_base="$(python3 -m site --user-base)"
+        "${user_base}/bin/cmake" --version
+        echo "${user_base}/bin" >> "$GITHUB_PATH"
+    - name: Use dependency baseline from release source
+      shell: bash
+      run: |
+        python - <<'BASELINE'
+        import json
+        import os
+        import re
+        from pathlib import Path
+        manifest = json.loads(Path('vcpkg.json').read_text())
+        baseline = manifest['vcpkg-configuration']['default-registry']['baseline']
+        if not re.fullmatch('[0-9a-f]{40}', baseline):
+            raise ValueError('Invalid vcpkg baseline')
+        with open(os.environ['GITHUB_ENV'], 'a') as output:
+            output.write(f'VCPKG_COMMIT_ID={baseline}\n')
+        BASELINE
     - name: Setup vcpkg with Github Actions binary cache
       if: matrix.job.arch == 'x86_64' || env.UPLOAD_ARTIFACT == 'true'
       uses: lukka/run-vcpkg@b1a0dd252f06b9e25b3c022a9a03bd7a427fb6a2
@@ -1471,9 +1555,9 @@ jobs:
     - name: Build Flatpak with SDK-compatible builder
       shell: bash
       run: |
-        docker run --rm --privileged --device /dev/fuse --volume "$PWD:/workspace" --workdir /workspace ubuntu:24.04 bash -euo pipefail <<'FLATPAK'
+        docker run --rm --interactive --privileged --env DEBIAN_FRONTEND=noninteractive --device /dev/fuse --volume "$PWD:/workspace" --workdir /workspace ubuntu:24.04 bash -euo pipefail <<'FLATPAK'
         apt-get update -y
-        apt-get install -y git flatpak flatpak-builder appstream-compose
+        apt-get install -y git flatpak flatpak-builder appstream-compose </dev/null
         dpkg --compare-versions "$(dpkg-query -W -f='${Version}' flatpak-builder)" ge 1.4.0
         # disable git safe.directory
         git config --global --add safe.directory "*"
@@ -1486,6 +1570,7 @@ jobs:
         flatpak build-bundle ./repo rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.job.suffix }}.flatpak com.edgealphix.desk
 
         FLATPAK
+        test -s flatpak/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.job.suffix }}.flatpak
     - name: Collect Publish flatpak package
       uses: actions/upload-artifact@v4
       with:

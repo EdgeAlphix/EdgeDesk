@@ -22,6 +22,7 @@ original['name'] = 'EdgeDesk platform builds'
 original['permissions'] = {'contents': 'read'}
 original['on']['workflow_call']['inputs'].update({'source-ref': {'required': True, 'type':'string'}, 'version':{'required':True,'type':'string'}})
 original['env']['VERSION'] = '${{ inputs.version }}'
+original['env']['VCPKG_CMAKE_VERSION'] = '4.3.0'
 for key in ('build-for-windows-sciter','build-rustdesk-linux-sciter','build-rustdesk-web','publish_unsigned'):
     original['jobs'].pop(key, None)
 flatpak = original['jobs']['build-flatpak']
@@ -31,11 +32,11 @@ for step in flatpak['steps']:
     if step.get('id') == 'flatpak':
         commands = step['with']['run'].replace('pushd /workspace\n', '')
         step.clear()
-        step.update({'name': 'Build Flatpak with SDK-compatible builder', 'shell': 'bash', 'run': '''docker run --rm --privileged --device /dev/fuse --volume "$PWD:/workspace" --workdir /workspace ubuntu:24.04 bash -euo pipefail <<'FLATPAK'
+        step.update({'name': 'Build Flatpak with SDK-compatible builder', 'shell': 'bash', 'run': '''docker run --rm --interactive --privileged --env DEBIAN_FRONTEND=noninteractive --device /dev/fuse --volume "$PWD:/workspace" --workdir /workspace ubuntu:24.04 bash -euo pipefail <<'FLATPAK'
 apt-get update -y
-apt-get install -y git flatpak flatpak-builder appstream-compose
+apt-get install -y git flatpak flatpak-builder appstream-compose </dev/null
 dpkg --compare-versions "$(dpkg-query -W -f='${Version}' flatpak-builder)" ge 1.4.0
-''' + commands + '\nFLATPAK\n'})
+''' + commands + '\nFLATPAK\ntest -s flatpak/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.job.suffix }}.flatpak\n'})
 bridgejob = original['jobs']['generate-bridge']
 bridgejob['uses'] = './.github/workflows/edgedesk-bridge.yml'
 bridgejob['with'] = {'source-ref': '${{ inputs.source-ref }}'}
@@ -73,6 +74,23 @@ for name, check in checks.items():
     steps.insert(index + 1, check)
 for job in original['jobs']['build-rustdesk-linux']['strategy']['matrix']['job']:
     job['distro'] = 'ubuntu20.04'
+linux_steps = original['jobs']['build-rustdesk-linux']['steps']
+index = next(i for i, step in enumerate(linux_steps) if step.get('name') == 'Setup vcpkg with Github Actions binary cache')
+linux_steps.insert(index, {
+    'name': 'Install CMake for vcpkg on Linux ARM64',
+    'if': "matrix.job.arch == 'aarch64' && env.UPLOAD_ARTIFACT == 'true'",
+    'shell': 'bash',
+    'run': 'python3 -m pip install --user "cmake==${VCPKG_CMAKE_VERSION}"\nuser_base="$(python3 -m site --user-base)"\n"${user_base}/bin/cmake" --version\necho "${user_base}/bin" >> "$GITHUB_PATH"\n',
+})
+for job in original['jobs'].values():
+    steps = job.get('steps', [])
+    index = next((i for i, step in enumerate(steps) if step.get('name') == 'Setup vcpkg with Github Actions binary cache'), None)
+    if index is not None:
+        steps.insert(index, {
+            'name': 'Use dependency baseline from release source',
+            'shell': 'bash',
+            'run': "python - <<'BASELINE'\nimport json\nimport os\nimport re\nfrom pathlib import Path\nmanifest = json.loads(Path('vcpkg.json').read_text())\nbaseline = manifest['vcpkg-configuration']['default-registry']['baseline']\nif not re.fullmatch('[0-9a-f]{40}', baseline):\n    raise ValueError('Invalid vcpkg baseline')\nwith open(os.environ['GITHUB_ENV'], 'a') as output:\n    output.write(f'VCPKG_COMMIT_ID={baseline}\\n')\nBASELINE\n",
+        })
 linux_build = next(step for step in original["jobs"]["build-rustdesk-linux"]["steps"] if step.get("name") == "Build rustdesk")
 linux_build["with"]["install"] = linux_build["with"]["install"].replace("libva-dev", "libva-dev libdrm-dev")
 linux_build["with"]["run"] = linux_build["with"]["run"].replace("for name in rustdesk*??.rpm", "for name in edgedesk*??.rpm")

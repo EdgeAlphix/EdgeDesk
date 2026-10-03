@@ -72,6 +72,21 @@ for source in manifest['modules'][-1]['sources']:
 assert 'com.rustdesk.RustDesk' not in (root / '.github/workflows/edgedesk-build.yml').read_text()
 build_workflow = (root / '.github/workflows/edgedesk-build.yml').read_text()
 assert 'ubuntu:24.04 bash -euo pipefail' in build_workflow
+assert 'docker run --rm --interactive --privileged --env DEBIAN_FRONTEND=noninteractive' in build_workflow
+import yaml
+workflow = yaml.safe_load(build_workflow)
+for job in workflow['jobs'].values():
+    steps = job.get('steps', [])
+    for index, step in enumerate(steps):
+        if step.get('name') == 'Setup vcpkg with Github Actions binary cache':
+            assert steps[index - 1]['name'] == 'Use dependency baseline from release source'
+            assert "manifest['vcpkg-configuration']['default-registry']['baseline']" in steps[index - 1]['run']
+flatpak_steps = workflow['jobs']['build-flatpak']['steps']
+flatpak_run = next(step['run'] for step in flatpak_steps if step.get('name') == 'Build Flatpak with SDK-compatible builder')
+assert 'docker run --rm --interactive ' in flatpak_run
+assert 'test -s flatpak/rustdesk-' in flatpak_run
+assert workflow['env']['VCPKG_CMAKE_VERSION'] == '4.3.0'
+
 assert 'flatpak flatpak-builder appstream-compose' in build_workflow
 assert 'for name in rustdesk*??.rpm' not in build_workflow
 assert 'distro: ubuntu18.04' not in build_workflow
@@ -94,8 +109,11 @@ for name in ('agent.plist', 'daemon.plist', 'install.scpt', 'update.scpt', 'unin
 assert 'set(BINARY_NAME "edgedesk")' in (root / 'flutter/linux/CMakeLists.txt').read_text()
 assert 'ExecStart=/usr/bin/edgedesk --service' in (root / 'res/edgedesk.service').read_text()
 assert '/usr/share/edgedesk/edgedesk /usr/bin/edgedesk' in (root / 'res/DEBIAN/postinst').read_text()
-for name in ('edgedesk.service', 'edgedesk.desktop', 'edgedesk-link.desktop', 'pam.d/edgedesk.debian'):
+for name in ('edgedesk.service', 'edgedesk.desktop', 'edgedesk-link.desktop'):
     assert (root / 'res' / name).is_file()
+
+if 'pam.d/edgedesk.debian' in (root / 'build.py').read_text():
+    assert (root / 'res/pam.d/edgedesk.debian').is_file()
 
 assert (root / 'flutter/assets/logo.png').read_bytes() == (root / 'edgedesk/assets/wordmark.png').read_bytes()
 assert (root / 'flutter/assets/icon.png').read_bytes() == (root / 'edgedesk/assets/icon.png').read_bytes()
