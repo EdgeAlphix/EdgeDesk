@@ -10,7 +10,7 @@ if [ "$1" = configure ]; then
 	if [ "systemd" == "$INITSYS" ]; then
 
 		if [ -e /etc/systemd/system/edgedesk.service ]; then
-			rm /etc/systemd/system/edgedesk.service /usr/lib/systemd/system/edgedesk.service /usr/lib/systemd/user/edgedesk.service >/dev/null  2>&1
+			rm -f /etc/systemd/system/edgedesk.service /usr/lib/systemd/system/edgedesk.service /usr/lib/systemd/user/edgedesk.service >/dev/null  2>&1
 		fi
 		mkdir -p /usr/lib/systemd/system/
 		cp /usr/share/edgedesk/files/systemd/edgedesk.service /usr/lib/systemd/system/edgedesk.service

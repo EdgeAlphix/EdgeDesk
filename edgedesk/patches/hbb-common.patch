@@ -1,5 +1,5 @@
 diff --git a/src/config.rs b/src/config.rs
-index 1391ed4..06f1185 100644
+index 6fe1004..992f982 100644
 --- a/src/config.rs
 +++ b/src/config.rs
 @@ -54,7 +54,7 @@ const SERIAL: i32 = 3;
@@ -22,7 +22,7 @@ index 1391ed4..06f1185 100644
      pub static ref NEW_STORED_PEER_CONFIG: Mutex<HashSet<String>> = Default::default();
 -    pub static ref DEFAULT_SETTINGS: RwLock<HashMap<String, String>> = Default::default();
 -    pub static ref OVERWRITE_SETTINGS: RwLock<HashMap<String, String>> = Default::default();
-+    pub static ref DEFAULT_SETTINGS: RwLock<HashMap<String, String>> = RwLock::new(HashMap::from([("allow-insecure-tls-fallback".into(), "Y".into())]));
++    pub static ref DEFAULT_SETTINGS: RwLock<HashMap<String, String>> = RwLock::new(HashMap::from([("allow-insecure-tls-fallback".into(), "N".into())]));
 +    pub static ref OVERWRITE_SETTINGS: RwLock<HashMap<String, String>> = RwLock::new(HashMap::from([
 +        ("custom-rendezvous-server".into(), "api.edgedesk.edgealphix.com:21116".into()),
 +        ("api-server".into(), "https://api.edgedesk.edgealphix.com".into()),
@@ -56,10 +56,10 @@ index 1391ed4..06f1185 100644
 -pub const LINK_DOCS_X11_REQUIRED: &str = "https://rustdesk.com/docs/en/manual/linux/#x11-required";
 +pub const LINK_DOCS_HOME: &str = "https://github.com/EdgeAlphix/EdgeDesk";
 +pub const LINK_DOCS_X11_REQUIRED: &str = "https://github.com/EdgeAlphix/EdgeDesk";
- pub const LINK_HEADLESS_LINUX_SUPPORT: &str =
-     "https://github.com/rustdesk/rustdesk/wiki/Headless-Linux-Support";
  
-@@ -117,8 +130,8 @@ const CHARS: &[char] = &[
+ lazy_static::lazy_static! {
+     pub static ref HELPER_URL: HashMap<&'static str, &'static str> = HashMap::from([
+@@ -114,8 +127,8 @@ const CHARS: &[char] = &[
      'm', 'n', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
  ];
  
@@ -70,7 +70,7 @@ index 1391ed4..06f1185 100644
  
  pub const RENDEZVOUS_PORT: i32 = 21116;
  pub const RELAY_PORT: i32 = 21117;
-@@ -911,53 +924,11 @@ impl Config {
+@@ -908,54 +921,12 @@ impl Config {
      }
  
      pub fn get_rendezvous_server() -> String {
@@ -94,8 +94,9 @@ index 1391ed4..06f1185 100644
 -            rendezvous_server = format!("{rendezvous_server}:{RENDEZVOUS_PORT}");
 -        }
 -        rendezvous_server
+-    }
 +        "api.edgedesk.edgealphix.com:21116".to_owned()
-     }
++}
  
      pub fn get_rendezvous_servers() -> Vec<String> {
 -        let s = EXE_RENDEZVOUS_SERVER.read().unwrap().clone();
@@ -122,60 +123,17 @@ index 1391ed4..06f1185 100644
 -            }
 -        }
 -        return RENDEZVOUS_SERVERS.iter().map(|x| x.to_string()).collect();
+-    }
 +        vec!["api.edgedesk.edgealphix.com:21116".to_owned()]
-     }
++}
  
      pub fn reset_online() {
+         *ONLINE.lock().unwrap() = Default::default();
 diff --git a/src/lib.rs b/src/lib.rs
-index 2b35642..ee2c192 100644
+index 8bc7f09..7f95863 100644
 --- a/src/lib.rs
 +++ b/src/lib.rs
-@@ -58,9 +58,9 @@ pub use uuid;
- pub mod fingerprint;
- pub use flexi_logger;
- pub mod stream;
--pub mod websocket;
- #[cfg(feature = "webrtc")]
- pub mod webrtc;
-+pub mod websocket;
- #[cfg(any(target_os = "android", target_os = "ios"))]
- pub use rustls_platform_verifier;
- pub use stream::Stream;
-@@ -68,9 +68,9 @@ pub use whoami;
- pub mod tls;
- pub mod verifier;
- pub use async_recursion;
-+pub use libloading;
- #[cfg(target_os = "linux")]
- pub use users;
--pub use libloading;
- #[cfg(target_os = "linux")]
- pub use x11;
- 
-@@ -432,7 +432,10 @@ pub fn init_log(_is_async: bool, _name: &str) -> Option<flexi_logger::LoggerHand
-         #[cfg(debug_assertions)]
-         {
-             use env_logger::*;
--            init_from_env(Env::default().filter_or(DEFAULT_FILTER_ENV, "info,reqwest=warn,rustls=warn,webrtc-sctp=warn,webrtc=warn"));
-+            init_from_env(Env::default().filter_or(
-+                DEFAULT_FILTER_ENV,
-+                "info,reqwest=warn,rustls=warn,webrtc-sctp=warn,webrtc=warn",
-+            ));
-         }
-         #[cfg(not(debug_assertions))]
-         {
-@@ -447,7 +450,9 @@ pub fn init_log(_is_async: bool, _name: &str) -> Option<flexi_logger::LoggerHand
-                 path.push(_name);
-             }
-             use flexi_logger::*;
--            if let Ok(x) = Logger::try_with_env_or_str("debug,reqwest=warn,rustls=warn,webrtc-sctp=warn,webrtc=warn") {
-+            if let Ok(x) = Logger::try_with_env_or_str(
-+                "debug,reqwest=warn,rustls=warn,webrtc-sctp=warn,webrtc=warn",
-+            ) {
-                 logger_holder = x
-                     .log_to_file(FileSpec::default().directory(path))
-                     .write_mode(if _is_async {
-@@ -493,24 +498,12 @@ pub const VER_TYPE_RUSTDESK_CLIENT: &str = "rustdesk-client";
+@@ -508,25 +508,7 @@ pub const VER_TYPE_RUSTDESK_CLIENT: &str = "rustdesk-client";
  pub const VER_TYPE_RUSTDESK_SERVER: &str = "rustdesk-server";
  
  pub fn version_check_request(typ: String) -> (VersionCheckRequest, String) {
@@ -188,25 +146,25 @@ index 2b35642..ee2c192 100644
 -    let arch = std::env::consts::ARCH.to_string();
 -    #[allow(deprecated)]
 -    let device_id = fingerprint::get_fingerprint(None, None);
-     (
-         VersionCheckRequest {
+-    (
+-        VersionCheckRequest {
 -            os,
 -            os_version,
 -            arch,
 -            device_id,
-             typ,
-+            ..Default::default()
-         },
+-            typ,
+-        },
 -        URL.to_string(),
-+        "".to_owned(),
-     )
+-    )
++    (VersionCheckRequest { typ, ..Default::default() }, "".to_owned())
  }
  
+ pub fn time_based_rand() -> u32 {
 diff --git a/src/socket_client.rs b/src/socket_client.rs
-index 9178b74..70d4693 100644
+index d40a0ff..1c4c974 100644
 --- a/src/socket_client.rs
 +++ b/src/socket_client.rs
-@@ -291,10 +291,10 @@ mod tests {
+@@ -314,10 +314,10 @@ mod tests {
              "1.1.1.1.nip.io:8080"
          );
          assert_eq!(
@@ -220,79 +178,20 @@ index 9178b74..70d4693 100644
              .to_socket_addrs()
              .unwrap()
              .next()
-diff --git a/src/stream.rs b/src/stream.rs
-index a8e6b6c..4b0f9a8 100644
---- a/src/stream.rs
-+++ b/src/stream.rs
-@@ -1,6 +1,6 @@
--use crate::{config, tcp, websocket, ResultType};
- #[cfg(feature = "webrtc")]
- use crate::webrtc;
-+use crate::{config, tcp, websocket, ResultType};
- use sodiumoxide::crypto::secretbox::Key;
- use std::net::SocketAddr;
- use tokio::net::TcpStream;
-diff --git a/src/tcp.rs b/src/tcp.rs
-index 2296edb..ad5867f 100644
---- a/src/tcp.rs
-+++ b/src/tcp.rs
-@@ -1,4 +1,4 @@
--use crate::{bail, bytes_codec::BytesCodec, ResultType, config::Socks5Server, proxy::Proxy};
-+use crate::{bail, bytes_codec::BytesCodec, config::Socks5Server, proxy::Proxy, ResultType};
- use anyhow::Context as AnyhowCtx;
- use bytes::{BufMut, Bytes, BytesMut};
- use futures::{SinkExt, StreamExt};
-@@ -62,7 +62,10 @@ impl DerefMut for DynTcpStream {
-     }
- }
- 
--pub(crate) fn new_socket(addr: std::net::SocketAddr, reuse: bool) -> Result<TcpSocket, std::io::Error> {
-+pub(crate) fn new_socket(
-+    addr: std::net::SocketAddr,
-+    reuse: bool,
-+) -> Result<TcpSocket, std::io::Error> {
-     let socket = match addr {
-         std::net::SocketAddr::V4(..) => TcpSocket::new_v4()?,
-         std::net::SocketAddr::V6(..) => TcpSocket::new_v6()?,
-diff --git a/src/webrtc.rs b/src/webrtc.rs
-index 8f3c410..5a52c44 100644
---- a/src/webrtc.rs
-+++ b/src/webrtc.rs
-@@ -586,10 +586,7 @@ mod tests {
-             "turn:example.com:3478"
-         );
-         assert_eq!(WebRTCStream::get_ice_servers().len(), 2);
--        config::Config::set_option(
--            "ice-servers".to_string(),
--            "".to_string(),
--        );
-+        config::Config::set_option("ice-servers".to_string(), "".to_string());
-     }
- 
-     #[test]
 diff --git a/src/websocket.rs b/src/websocket.rs
-index 7bf2108..a11b191 100644
+index 6c50625..d234c40 100644
 --- a/src/websocket.rs
 +++ b/src/websocket.rs
-@@ -417,14 +417,23 @@ mod tests {
+@@ -480,14 +480,14 @@ mod tests {
          assert_eq!(check_ws("127.0.0.1:21115"), "ws://127.0.0.1:21118");
          assert_eq!(check_ws("127.0.0.1:21116"), "ws://127.0.0.1:21118");
          assert_eq!(check_ws("127.0.0.1:21117"), "ws://127.0.0.1:21119");
 -        assert_eq!(check_ws("rustdesk.com:21115"), "ws://rustdesk.com/ws/id");
 -        assert_eq!(check_ws("rustdesk.com:21116"), "ws://rustdesk.com/ws/id");
 -        assert_eq!(check_ws("rustdesk.com:21117"), "ws://rustdesk.com/ws/relay");
-+        assert_eq!(
-+            check_ws("https://github.com/EdgeAlphix/EdgeDesk:21115"),
-+            "ws://https://github.com/EdgeAlphix/EdgeDesk"
-+        );
-+        assert_eq!(
-+            check_ws("https://github.com/EdgeAlphix/EdgeDesk:21116"),
-+            "ws://https://github.com/EdgeAlphix/EdgeDesk"
-+        );
-+        assert_eq!(
-+            check_ws("https://github.com/EdgeAlphix/EdgeDesk:21117"),
-+            "ws://https://github.com/EdgeAlphix/EdgeDesk"
-+        );
++        assert_eq!(check_ws("https://github.com/EdgeAlphix/EdgeDesk:21115"), "ws://https://github.com/EdgeAlphix/EdgeDesk");
++        assert_eq!(check_ws("https://github.com/EdgeAlphix/EdgeDesk:21116"), "ws://https://github.com/EdgeAlphix/EdgeDesk");
++        assert_eq!(check_ws("https://github.com/EdgeAlphix/EdgeDesk:21117"), "ws://https://github.com/EdgeAlphix/EdgeDesk");
          // set relay-server without port
          Config::set_option("relay-server".to_string(), "127.0.0.1".to_string());
          Config::set_option(
@@ -302,45 +201,33 @@ index 7bf2108..a11b191 100644
          );
          assert_eq!(
              check_ws("[0:0:0:0:0:0:0:1]:21115"),
-@@ -438,11 +447,17 @@ mod tests {
+@@ -501,11 +501,11 @@ mod tests {
              check_ws("[0:0:0:0:0:0:0:1]:21117"),
              "ws://[0:0:0:0:0:0:0:1]:21119"
          );
 -        assert_eq!(check_ws("rustdesk.com:21115"), "wss://rustdesk.com/ws/id");
 -        assert_eq!(check_ws("rustdesk.com:21116"), "wss://rustdesk.com/ws/id");
++        assert_eq!(check_ws("https://github.com/EdgeAlphix/EdgeDesk:21115"), "wss://https://github.com/EdgeAlphix/EdgeDesk");
++        assert_eq!(check_ws("https://github.com/EdgeAlphix/EdgeDesk:21116"), "wss://https://github.com/EdgeAlphix/EdgeDesk");
          assert_eq!(
 -            check_ws("rustdesk.com:21117"),
 -            "wss://rustdesk.com/ws/relay"
-+            check_ws("https://github.com/EdgeAlphix/EdgeDesk:21115"),
-+            "wss://https://github.com/EdgeAlphix/EdgeDesk"
-+        );
-+        assert_eq!(
-+            check_ws("https://github.com/EdgeAlphix/EdgeDesk:21116"),
-+            "wss://https://github.com/EdgeAlphix/EdgeDesk"
-+        );
-+        assert_eq!(
 +            check_ws("https://github.com/EdgeAlphix/EdgeDesk:21117"),
 +            "wss://https://github.com/EdgeAlphix/EdgeDesk"
          );
          // set relay-server with default port
          Config::set_option("relay-server".to_string(), "127.0.0.1:21117".to_string());
-@@ -451,11 +466,17 @@ mod tests {
+@@ -514,11 +514,11 @@ mod tests {
          assert_eq!(check_ws("127.0.0.1:21117"), "ws://127.0.0.1:21119");
          // set relay-server with custom port
          Config::set_option("relay-server".to_string(), "127.0.0.1:34567".to_string());
 -        assert_eq!(check_ws("rustdesk.com:21115"), "wss://rustdesk.com/ws/id");
 -        assert_eq!(check_ws("rustdesk.com:21116"), "wss://rustdesk.com/ws/id");
++        assert_eq!(check_ws("https://github.com/EdgeAlphix/EdgeDesk:21115"), "wss://https://github.com/EdgeAlphix/EdgeDesk");
++        assert_eq!(check_ws("https://github.com/EdgeAlphix/EdgeDesk:21116"), "wss://https://github.com/EdgeAlphix/EdgeDesk");
          assert_eq!(
 -            check_ws("rustdesk.com:34567"),
 -            "wss://rustdesk.com/ws/relay"
-+            check_ws("https://github.com/EdgeAlphix/EdgeDesk:21115"),
-+            "wss://https://github.com/EdgeAlphix/EdgeDesk"
-+        );
-+        assert_eq!(
-+            check_ws("https://github.com/EdgeAlphix/EdgeDesk:21116"),
-+            "wss://https://github.com/EdgeAlphix/EdgeDesk"
-+        );
-+        assert_eq!(
 +            check_ws("https://github.com/EdgeAlphix/EdgeDesk:34567"),
 +            "wss://https://github.com/EdgeAlphix/EdgeDesk"
          );

@@ -130,7 +130,16 @@ pub mod client {
         }
 
         pub fn send_refresh(&mut self) -> ResultType<()> {
-            self.send(Data::Mouse(DataMouse::Refresh))
+            self.rt
+                .block_on(self.conn.send(&Data::Mouse(DataMouse::Refresh)))?;
+            // Wait for the service to confirm it recreated the device, so a
+            // failed refresh is distinguishable from a good one.
+            match self.rt.block_on(self.conn.next_timeout(IPC_REQUEST_TIMEOUT)) {
+                Ok(Some(Data::Empty)) => Ok(()),
+                Ok(Some(resp)) => bail!("unexpected uinput mouse refresh response: {:?}", &resp),
+                Ok(None) => bail!("uinput mouse refresh failed, connection closed"),
+                Err(e) => bail!("uinput mouse refresh timeout {}, {}", IPC_REQUEST_TIMEOUT, e),
+            }
         }
     }
 
@@ -851,9 +860,10 @@ pub mod service {
                                 match data {
                                     Data::Mouse(data) => {
                                         if let DataMouse::Refresh = data {
-                                            let resolution = RESOLUTION.lock().unwrap();
-                                            let rng_x = resolution.0.clone();
-                                            let rng_y = resolution.1.clone();
+                                            let (rng_x, rng_y) = {
+                                                let resolution = RESOLUTION.lock().unwrap();
+                                                (resolution.0.clone(), resolution.1.clone())
+                                            };
                                             log::info!(
                                                 "Refresh uinput mouce with rng_x: ({}, {}), rng_y: ({}, {})",
                                                 rng_x.0,
@@ -861,11 +871,19 @@ pub mod service {
                                                 rng_y.0,
                                                 rng_y.1
                                             );
-                                            mouse = match mouce::UInputMouseManager::new(rng_x, rng_y) {
-                                                Ok(mouse) => mouse,
+                                            match mouce::UInputMouseManager::new(rng_x, rng_y) {
+                                                Ok(m) => {
+                                                    mouse = m;
+                                                    // Ack: device adopted the new range.
+                                                    allow_err!(stream.send(&Data::Empty).await);
+                                                }
                                                 Err(e) => {
-                                                    log::error!("Failed to create mouse, {}", e);
-                                                    return;
+                                                    // Keep the current device; withhold the ack
+                                                    // so the client times out and retries.
+                                                    log::error!(
+                                                        "Failed to recreate uinput mouse, keeping current: {}",
+                                                        e
+                                                    );
                                                 }
                                             }
                                         } else {
@@ -1051,7 +1069,13 @@ mod mouce {
     pub const BTN_TASK: c_int = 0x117;
     const SYN_REPORT: c_int = 0x00;
     const EV_SYN: c_int = 0x00;
-    const BUS_USB: c_ushort = 0x03;
+    // libinput's evdev_tag_external_mouse() tags any BUS_USB/BUS_BLUETOOTH
+    // pointer as an external mouse, which makes desktop environments'
+    // "disable touchpad when an external mouse is present" setting suspend
+    // the real touchpad whenever this virtual device is created, even
+    // though nothing is physically plugged in. BUS_VIRTUAL correctly
+    // identifies this as the software-only device it is.
+    const BUS_VIRTUAL: c_ushort = 0x06;
 
     /// uinput types
     #[repr(C)]
@@ -1190,7 +1214,7 @@ mod mouce {
 
             let mut usetup = UInputSetup {
                 id: InputId {
-                    bustype: BUS_USB,
+                    bustype: BUS_VIRTUAL,
                     // Random vendor and product
                     vendor: 0x2222,
                     product: 0x3333,
