@@ -1,4 +1,4 @@
-name: EdgeDesk stable releases
+name: EdgeDesk stable release check
 on:
   schedule:
     - cron: '23 */6 * * *'

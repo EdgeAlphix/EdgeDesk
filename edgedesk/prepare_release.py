@@ -18,6 +18,16 @@ def output(**values):
         with open(os.environ['GITHUB_OUTPUT'],'a') as f:
             for k,v in values.items():
                 f.write(f'{k}={v}\n')
+    release_url = f"https://github.com/{repo}/releases/tag/{values['tag']}"
+    if values['build'] == 'false':
+        status = f"No new upstream stable release. EdgeDesk {values['version']} is already published; compilation and publishing were skipped."
+    else:
+        status = f"Preparing EdgeDesk {values['version']} from the upstream stable release. Platform compilation and publishing will follow."
+    summary = f'{status}\n\n[EdgeDesk release]({release_url})\n'
+    print(status)
+    if os.environ.get('GITHUB_STEP_SUMMARY'):
+        with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as f:
+            f.write(summary)
     print(json.dumps(values))
 
 release=json.loads(run('gh','api','repos/rustdesk/rustdesk/releases/latest',capture=True))
