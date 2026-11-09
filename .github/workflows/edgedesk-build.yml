@@ -468,7 +468,7 @@ jobs:
           arch: x86_64
           vcpkg-triplet: x64-osx
         - target: aarch64-apple-darwin
-          os: macos-14
+          os: macos-15
           extra-build-args: --screencapturekit
           arch: aarch64
           vcpkg-triplet: arm64-osx

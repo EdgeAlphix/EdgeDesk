@@ -23,6 +23,9 @@ original['permissions'] = {'contents': 'read'}
 original['on']['workflow_call']['inputs'].update({'source-ref': {'required': True, 'type':'string'}, 'version':{'required':True,'type':'string'}})
 original['env']['VERSION'] = '${{ inputs.version }}'
 original['env']['VCPKG_CMAKE_VERSION'] = '4.3.0'
+for job in original['jobs']['build-for-macOS']['strategy']['matrix']['job']:
+    if job['os'] == 'macos-14':
+        job['os'] = 'macos-15'
 for key in ('build-for-windows-sciter','build-rustdesk-linux-sciter','build-rustdesk-web','publish_unsigned'):
     original['jobs'].pop(key, None)
 flatpak = original['jobs']['build-flatpak']
