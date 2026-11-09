@@ -230,8 +230,10 @@ body(root / 'flutter/lib/mobile/pages/settings_page.dart',
       actions: [],
     );
   }, clickMaskDismiss: true, backDismiss: true);''')
-body(root/'src/common.rs', 'pub fn is_public(url: &str)', '    let _ = url;\n    false')
-body(root/'src/common.rs', 'fn test_is_public()', '        assert!(!is_public("https://api.edgedesk.edgealphix.com"));')
+common_rs = root / 'src/common.rs'
+body(common_rs, 'pub fn is_public(url: &str)', '    let _ = url;\n    false')
+for signature in re.findall(r'(?m)^[ \t]*(fn test_is_public\w*\(\))\s*\{', common_rs.read_text()):
+    body(common_rs, signature, '        assert!(!is_public("https://api.edgedesk.edgealphix.com"));')
 rc=root/'flutter/windows/runner/Runner.rc'
 rc.write_text(rc.read_text().replace('RustDesk Remote Desktop','EdgeDesk Remote Desktop').replace('"ProductName", "RustDesk"','"ProductName", "EdgeDesk"'))
 
