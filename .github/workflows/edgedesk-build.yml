@@ -113,9 +113,26 @@ jobs:
         name: ${{ matrix.job.arch == 'aarch64' && 'bridge-artifact-flutter-3.44' || 'bridge-artifact' }}
         path: ./
     - name: Install LLVM and Clang
-      uses: KyleMayes/install-llvm-action@ebc0426251bc40c7cd31162802432c68818ab8f0
-      with:
-        version: ${{ env.LLVM_VERSION }}
+      run: |
+        if ($env:RUNNER_ARCH -eq 'ARM64') {
+          $target = 'woa64'
+          $sha256 = '79d18b9498d7a6c36114f0277c83c91caf9258194c683a73e5886b68b4d304d1'
+        } else {
+          $target = 'win64'
+          $sha256 = '22e2f2c38be4c44db7a1e9da5e67de2a453c5b4be9cf91e139592a63877ac0a2'
+        }
+        $asset = "LLVM-$env:LLVM_VERSION-$target.exe"
+        $archive = Join-Path $env:RUNNER_TEMP $asset
+        $llvm = Join-Path $env:RUNNER_TEMP 'edgedesk-llvm'
+        python edgedesk/vcpkg.py download "https://github.com/llvm/llvm-project/releases/download/llvmorg-$env:LLVM_VERSION/$asset" $archive "sha256:$sha256"
+        if ($LASTEXITCODE -ne 0) { throw 'LLVM download failed' }
+        7z x $archive "-o$llvm" -y
+        if ($LASTEXITCODE -ne 0) { throw 'LLVM extraction failed' }
+        & "$llvm/bin/clang.exe" --version
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path "$llvm/bin/libclang.dll")) { throw 'LLVM installation failed' }
+        "$llvm/bin" >> $env:GITHUB_PATH
+        "LLVM_PATH=$llvm" >> $env:GITHUB_ENV
+        "LIBCLANG_PATH=$llvm/bin" >> $env:GITHUB_ENV
     - name: Install flutter
       id: flutter
       uses: subosito/flutter-action@2783a3f08e1baf891508463f8c6653c258246225

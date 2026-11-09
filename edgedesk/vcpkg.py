@@ -11,8 +11,9 @@ from urllib.parse import unquote
 
 
 def api(path, *args):
+    curl = str(Path(os.environ['SystemRoot']) / 'System32/curl.exe') if sys.platform == 'win32' else 'curl'
     return subprocess.check_output([
-        'curl', '--fail', '--silent', '--show-error', '--location',
+        curl, '--fail', '--silent', '--show-error', '--location',
         '--retry', '2', '--max-time', '120', *args,
         f'https://api.github.com/{path}',
     ])
@@ -75,9 +76,10 @@ def bootstrap():
     executable.chmod(0o755)
     subprocess.run([str(executable), 'version', '--disable-metrics'], check=True)
     script = Path(__file__).resolve().as_posix()
+    python = Path(sys.executable).as_posix()
     with open(os.environ['GITHUB_ENV'], 'a') as env:
         env.write(f'VCPKG_ROOT={root.as_posix()}\nVCPKG_DISABLE_METRICS=1\n')
-        env.write(f'X_VCPKG_ASSET_SOURCES=x-script,python "{script}" {{url}} {{sha512}} {{dst}}\n')
+        env.write(f'X_VCPKG_ASSET_SOURCES=x-script,"{python}" "{script}" {{url}} {{sha512}} {{dst}}\n')
 
 
 if __name__ == '__main__':

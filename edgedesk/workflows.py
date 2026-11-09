@@ -82,6 +82,29 @@ for step in universal['steps']:
             values['name'] = values['name'].replace('${{ matrix.job.arch }}','universal')
 windows_check = {"name": "Verify Windows executable starts", "shell": "pwsh", "run": '$process = Start-Process -FilePath (Resolve-Path ./rustdesk/rustdesk.exe) -ArgumentList "--version" -Wait -PassThru -RedirectStandardOutput version.txt -RedirectStandardError version-error.txt\n$version = Get-Content version.txt -Raw\nif ($process.ExitCode -ne 0 -or "$version" -notmatch [regex]::Escape("${{ env.VERSION }}")) { Get-Content version-error.txt; throw "EdgeDesk executable failed to report its version: $version" }\n'}
 checks = {'build-for-windows-flutter': windows_check, 'build-for-macOS': {'name': 'Verify macOS application identity and executable', 'shell': 'bash', 'run': 'app=flutter/build/macos/Build/Products/Release/EdgeDesk.app\ntest "$(/usr/libexec/PlistBuddy -c \'Print CFBundleIdentifier\' "$app/Contents/Info.plist")" = com.edgealphix.desk\n"$app/Contents/MacOS/EdgeDesk" --version | grep -F "${{ env.VERSION }}"\n'}}
+llvm = next(step for step in original['jobs']['build-for-windows-flutter']['steps'] if step.get('name') == 'Install LLVM and Clang')
+llvm.pop('uses')
+llvm.pop('with')
+llvm['run'] = '''if ($env:RUNNER_ARCH -eq 'ARM64') {
+  $target = 'woa64'
+  $sha256 = '79d18b9498d7a6c36114f0277c83c91caf9258194c683a73e5886b68b4d304d1'
+} else {
+  $target = 'win64'
+  $sha256 = '22e2f2c38be4c44db7a1e9da5e67de2a453c5b4be9cf91e139592a63877ac0a2'
+}
+$asset = "LLVM-$env:LLVM_VERSION-$target.exe"
+$archive = Join-Path $env:RUNNER_TEMP $asset
+$llvm = Join-Path $env:RUNNER_TEMP 'edgedesk-llvm'
+python edgedesk/vcpkg.py download "https://github.com/llvm/llvm-project/releases/download/llvmorg-$env:LLVM_VERSION/$asset" $archive "sha256:$sha256"
+if ($LASTEXITCODE -ne 0) { throw 'LLVM download failed' }
+7z x $archive "-o$llvm" -y
+if ($LASTEXITCODE -ne 0) { throw 'LLVM extraction failed' }
+& "$llvm/bin/clang.exe" --version
+if ($LASTEXITCODE -ne 0 -or -not (Test-Path "$llvm/bin/libclang.dll")) { throw 'LLVM installation failed' }
+"$llvm/bin" >> $env:GITHUB_PATH
+"LLVM_PATH=$llvm" >> $env:GITHUB_ENV
+"LIBCLANG_PATH=$llvm/bin" >> $env:GITHUB_ENV
+'''
 for name, check in checks.items():
     steps = original["jobs"][name]["steps"]
     index = next(i for i, step in enumerate(steps) if step.get("name") == "Build rustdesk")
