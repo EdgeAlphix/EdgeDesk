@@ -164,6 +164,14 @@ ios += [{'name':'Collect unsigned IPA','uses':'actions/upload-artifact@v4','with
 # Avoid duplicate APK uploads; final package-* artifacts already collect the signed APK.
 for name in ('build-rustdesk-android','build-rustdesk-android-universal'):
     original['jobs'][name]['steps'] = [s for s in original['jobs'][name]['steps'] if not (s.get('uses','').startswith('actions/upload-artifact@') and s.get('with',{}).get('name','').endswith('.apk'))]
+for job in original['jobs'].values():
+    for step in job.get('steps', []):
+        dependencies = step.get('name') == 'Install vcpkg dependencies'
+        if dependencies or 'edgedesk/vcpkg.py' in step.get('run', ''):
+            env = step.setdefault('env', {})
+            env['EDGEDESK_DOWNLOAD_TOKEN'] = '${{ github.token }}'
+            if dependencies:
+                env['VCPKG_KEEP_ENV_VARS'] = 'EDGEDESK_DOWNLOAD_TOKEN'
 # Keep upstream patch files but disable all upstream scheduled / push build entry points.
 bridge = yaml.load((wf/'bridge.yml').read_text(), Loader=Loader)
 bridge['on']['workflow_call'] = {'inputs':{'source-ref':{'required':True,'type':'string'}}}

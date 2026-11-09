@@ -12,11 +12,13 @@ from urllib.parse import unquote
 
 def api(path, *args):
     curl = str(Path(os.environ['SystemRoot']) / 'System32/curl.exe') if sys.platform == 'win32' else 'curl'
+    token = os.environ.get('EDGEDESK_DOWNLOAD_TOKEN')
+    headers = f'header = "Authorization: Bearer {token}"\n'.encode() if token else b''
     return subprocess.check_output([
-        curl, '--fail', '--silent', '--show-error', '--location',
+        curl, '--config', '-', '--fail', '--silent', '--show-error', '--location',
         '--retry', '2', '--max-time', '120', *args,
         f'https://api.github.com/{path}',
-    ])
+    ], input=headers)
 
 
 def fetch(url, checksum, destination):

@@ -133,6 +133,8 @@ jobs:
         "$llvm/bin" >> $env:GITHUB_PATH
         "LLVM_PATH=$llvm" >> $env:GITHUB_ENV
         "LIBCLANG_PATH=$llvm/bin" >> $env:GITHUB_ENV
+      env:
+        EDGEDESK_DOWNLOAD_TOKEN: ${{ github.token }}
     - name: Install flutter
       id: flutter
       uses: subosito/flutter-action@2783a3f08e1baf891508463f8c6653c258246225
@@ -173,6 +175,8 @@ jobs:
         python edgedesk/vcpkg.py download https://github.com/rustdesk/engine/releases/download/main/windows-x64-release.zip windows-x64-release.zip ede341b0015c745ecc67a5de504e424258f65fd976ac482a094b4c7bbab15fbea9e5a2f51b0869c306ec28c46ae83f578764c721bd179899736fad41ef36ad70
         Expand-Archive -Path windows-x64-release.zip -DestinationPath windows-x64-release
         mv -Force windows-x64-release/*  C:/hostedtoolcache/windows/flutter/stable-${{ env.FLUTTER_VERSION }}-x64/bin/cache/artifacts/engine/windows-x64-release/
+      env:
+        EDGEDESK_DOWNLOAD_TOKEN: ${{ github.token }}
     - name: Patch flutter
       if: ${{ matrix.job.arch == 'x86_64' }}
       shell: bash
@@ -212,11 +216,14 @@ jobs:
       shell: bash
       env:
         EDGEDESK_VCPKG_ROOT: C:\vcpkg
+        EDGEDESK_DOWNLOAD_TOKEN: ${{ github.token }}
       run: |
         python edgedesk/vcpkg.py bootstrap
     - name: Install vcpkg dependencies
       env:
         VCPKG_DEFAULT_HOST_TRIPLET: ${{ matrix.job.vcpkg-triplet }}
+        EDGEDESK_DOWNLOAD_TOKEN: ${{ github.token }}
+        VCPKG_KEEP_ENV_VARS: EDGEDESK_DOWNLOAD_TOKEN
       run: |
         if ! $VCPKG_ROOT/vcpkg \
           install \
@@ -277,6 +284,8 @@ jobs:
         } catch {
             Write-Host "Ingore the printer driver error."
         }
+      env:
+        EDGEDESK_DOWNLOAD_TOKEN: ${{ github.token }}
     - name: Verify Windows executable starts
       shell: pwsh
       run: |
@@ -412,6 +421,7 @@ jobs:
       shell: bash
       env:
         EDGEDESK_VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+        EDGEDESK_DOWNLOAD_TOKEN: ${{ github.token }}
       run: |
         python edgedesk/vcpkg.py bootstrap
     - name: Install vcpkg dependencies
@@ -431,6 +441,9 @@ jobs:
         fi
         head -n 100 "${VCPKG_ROOT}/buildtrees/ffmpeg/build-${{ matrix.job.vcpkg-triplet }}-rel-out.log" || true
       shell: bash
+      env:
+        EDGEDESK_DOWNLOAD_TOKEN: ${{ github.token }}
+        VCPKG_KEEP_ENV_VARS: EDGEDESK_DOWNLOAD_TOKEN
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
       with:
@@ -531,6 +544,8 @@ jobs:
         tar -zxvf apple-codesign-0.22.0-macos-universal.tar.gz
         mv apple-codesign-0.22.0-macos-universal/rcodesign /usr/local/bin
         popd
+      env:
+        EDGEDESK_DOWNLOAD_TOKEN: ${{ github.token }}
     - name: Install build runtime
       run: |
         brew install llvm create-dmg
@@ -599,6 +614,7 @@ jobs:
       shell: bash
       env:
         EDGEDESK_VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+        EDGEDESK_DOWNLOAD_TOKEN: ${{ github.token }}
       run: |
         python edgedesk/vcpkg.py bootstrap
     - name: Install vcpkg dependencies
@@ -616,6 +632,9 @@ jobs:
           exit 1
         fi
         head -n 100 "${VCPKG_ROOT}/buildtrees/ffmpeg/build-${{ matrix.job.vcpkg-triplet }}-rel-out.log" || true
+      env:
+        EDGEDESK_DOWNLOAD_TOKEN: ${{ github.token }}
+        VCPKG_KEEP_ENV_VARS: EDGEDESK_DOWNLOAD_TOKEN
     - name: Show version information (Rust, cargo, Clang)
       shell: bash
       run: |
@@ -817,6 +836,7 @@ jobs:
       shell: bash
       env:
         EDGEDESK_VCPKG_ROOT: /opt/artifacts/vcpkg
+        EDGEDESK_DOWNLOAD_TOKEN: ${{ github.token }}
       run: |
         python edgedesk/vcpkg.py bootstrap
     - name: Install vcpkg dependencies
@@ -846,6 +866,9 @@ jobs:
           exit 1
         fi
       shell: bash
+      env:
+        EDGEDESK_DOWNLOAD_TOKEN: ${{ github.token }}
+        VCPKG_KEEP_ENV_VARS: EDGEDESK_DOWNLOAD_TOKEN
     - name: Restore bridge files
       uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
       with:
@@ -1245,6 +1268,7 @@ jobs:
       shell: bash
       env:
         EDGEDESK_VCPKG_ROOT: /opt/artifacts/vcpkg
+        EDGEDESK_DOWNLOAD_TOKEN: ${{ github.token }}
       run: |
         python edgedesk/vcpkg.py bootstrap
     - name: Install vcpkg dependencies
@@ -1266,6 +1290,9 @@ jobs:
         fi
         head -n 100 "${VCPKG_ROOT}/buildtrees/ffmpeg/build-${{ matrix.job.vcpkg-triplet }}-rel-out.log" || true
       shell: bash
+      env:
+        EDGEDESK_DOWNLOAD_TOKEN: ${{ github.token }}
+        VCPKG_KEEP_ENV_VARS: EDGEDESK_DOWNLOAD_TOKEN
     - name: Restore bridge files
       if: matrix.job.arch == 'x86_64' || env.UPLOAD_ARTIFACT == 'true'
       uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
