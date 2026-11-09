@@ -153,7 +153,7 @@ jobs:
       run: |
         flutter doctor -v
         flutter precache --windows
-        Invoke-WebRequest -Uri https://github.com/rustdesk/engine/releases/download/main/windows-x64-release.zip -OutFile windows-x64-release.zip
+        python edgedesk/vcpkg.py download https://github.com/rustdesk/engine/releases/download/main/windows-x64-release.zip windows-x64-release.zip ede341b0015c745ecc67a5de504e424258f65fd976ac482a094b4c7bbab15fbea9e5a2f51b0869c306ec28c46ae83f578764c721bd179899736fad41ef36ad70
         Expand-Archive -Path windows-x64-release.zip -DestinationPath windows-x64-release
         mv -Force windows-x64-release/*  C:/hostedtoolcache/windows/flutter/stable-${{ env.FLUTTER_VERSION }}-x64/bin/cache/artifacts/engine/windows-x64-release/
     - name: Patch flutter
@@ -192,11 +192,11 @@ jobs:
             output.write(f'VCPKG_COMMIT_ID={baseline}\n')
         BASELINE
     - name: Setup vcpkg with Github Actions binary cache
-      uses: lukka/run-vcpkg@b1a0dd252f06b9e25b3c022a9a03bd7a427fb6a2
-      with:
-        vcpkgDirectory: C:\vcpkg
-        vcpkgGitCommitId: ${{ env.VCPKG_COMMIT_ID }}
-        doNotCache: false
+      shell: bash
+      env:
+        EDGEDESK_VCPKG_ROOT: C:\vcpkg
+      run: |
+        python edgedesk/vcpkg.py bootstrap
     - name: Install vcpkg dependencies
       env:
         VCPKG_DEFAULT_HOST_TRIPLET: ${{ matrix.job.vcpkg-triplet }}
@@ -228,7 +228,7 @@ jobs:
         mv ./flutter/build/windows/${{ matrix.job.flutter-arch }}/runner/Release ./rustdesk
 
         # Download usbmmidd_v2.zip and extract it to ./rustdesk
-        Invoke-WebRequest -Uri https://github.com/rustdesk-org/rdev/releases/download/usbmmidd_v2/usbmmidd_v2.zip -OutFile usbmmidd_v2.zip
+        python edgedesk/vcpkg.py download https://github.com/rustdesk-org/rdev/releases/download/usbmmidd_v2/usbmmidd_v2.zip usbmmidd_v2.zip 2013089cce010f2f1be46259722813cf51150d2f9a66d46d6be522a656dc4d0ede331323b24725b40ce803df19ec5a5052472b887fb2ed45173a7958cd24320d
         Expand-Archive usbmmidd_v2.zip -DestinationPath .
         Remove-Item -Path usbmmidd_v2\Win32 -Recurse
         Remove-Item -Path "usbmmidd_v2\deviceinstaller64.exe", "usbmmidd_v2\deviceinstaller.exe", "usbmmidd_v2\usbmmidd.bat"
@@ -236,9 +236,9 @@ jobs:
 
         # Download printer driver files and extract them to ./rustdesk
         try {
-          Invoke-WebRequest -Uri https://github.com/rustdesk/hbb_common/releases/download/driver/rustdesk_printer_driver_v4-1.4.zip -OutFile rustdesk_printer_driver_v4-1.4.zip
-          Invoke-WebRequest -Uri https://github.com/rustdesk/hbb_common/releases/download/driver/printer_driver_adapter.zip -OutFile printer_driver_adapter.zip
-          Invoke-WebRequest -Uri https://github.com/rustdesk/hbb_common/releases/download/driver/sha256sums -OutFile sha256sums
+          python edgedesk/vcpkg.py download https://github.com/rustdesk/hbb_common/releases/download/driver/rustdesk_printer_driver_v4-1.4.zip rustdesk_printer_driver_v4-1.4.zip
+          python edgedesk/vcpkg.py download https://github.com/rustdesk/hbb_common/releases/download/driver/printer_driver_adapter.zip printer_driver_adapter.zip
+          python edgedesk/vcpkg.py download https://github.com/rustdesk/hbb_common/releases/download/driver/sha256sums sha256sums
 
           # Check and move the files
           $checksum_driver = (Select-String -Path .\sha256sums -Pattern '^([a-fA-F0-9]{64}) \*rustdesk_printer_driver_v4-1.4\.zip$').Matches.Groups[1].Value
@@ -392,10 +392,11 @@ jobs:
             output.write(f'VCPKG_COMMIT_ID={baseline}\n')
         BASELINE
     - name: Setup vcpkg with Github Actions binary cache
-      uses: lukka/run-vcpkg@b1a0dd252f06b9e25b3c022a9a03bd7a427fb6a2
-      with:
-        vcpkgGitCommitId: ${{ env.VCPKG_COMMIT_ID }}
-        doNotCache: false
+      shell: bash
+      env:
+        EDGEDESK_VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+      run: |
+        python edgedesk/vcpkg.py bootstrap
     - name: Install vcpkg dependencies
       run: |
         if ! $VCPKG_ROOT/vcpkg \
@@ -509,7 +510,7 @@ jobs:
       shell: bash
       run: |
         pushd /tmp
-        wget https://github.com/indygreg/apple-platform-rs/releases/download/apple-codesign%2F0.22.0/apple-codesign-0.22.0-macos-universal.tar.gz
+        python "$GITHUB_WORKSPACE/edgedesk/vcpkg.py" download https://github.com/indygreg/apple-platform-rs/releases/download/apple-codesign%2F0.22.0/apple-codesign-0.22.0-macos-universal.tar.gz apple-codesign-0.22.0-macos-universal.tar.gz sha256:7031ee75ca2a55c558071701078517c05d959e012dd87833ac6b4a23c5ff52b9
         tar -zxvf apple-codesign-0.22.0-macos-universal.tar.gz
         mv apple-codesign-0.22.0-macos-universal/rcodesign /usr/local/bin
         popd
@@ -578,10 +579,11 @@ jobs:
             output.write(f'VCPKG_COMMIT_ID={baseline}\n')
         BASELINE
     - name: Setup vcpkg with Github Actions binary cache
-      uses: lukka/run-vcpkg@b1a0dd252f06b9e25b3c022a9a03bd7a427fb6a2
-      with:
-        vcpkgGitCommitId: ${{ env.VCPKG_COMMIT_ID }}
-        doNotCache: false
+      shell: bash
+      env:
+        EDGEDESK_VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+      run: |
+        python edgedesk/vcpkg.py bootstrap
     - name: Install vcpkg dependencies
       run: |
         if ! $VCPKG_ROOT/vcpkg \
@@ -795,11 +797,11 @@ jobs:
             output.write(f'VCPKG_COMMIT_ID={baseline}\n')
         BASELINE
     - name: Setup vcpkg with Github Actions binary cache
-      uses: lukka/run-vcpkg@b1a0dd252f06b9e25b3c022a9a03bd7a427fb6a2
-      with:
-        vcpkgDirectory: /opt/artifacts/vcpkg
-        vcpkgGitCommitId: ${{ env.VCPKG_COMMIT_ID }}
-        doNotCache: false
+      shell: bash
+      env:
+        EDGEDESK_VCPKG_ROOT: /opt/artifacts/vcpkg
+      run: |
+        python edgedesk/vcpkg.py bootstrap
     - name: Install vcpkg dependencies
       run: |
         case ${{ matrix.job.target }} in
@@ -1223,11 +1225,11 @@ jobs:
         BASELINE
     - name: Setup vcpkg with Github Actions binary cache
       if: matrix.job.arch == 'x86_64' || env.UPLOAD_ARTIFACT == 'true'
-      uses: lukka/run-vcpkg@b1a0dd252f06b9e25b3c022a9a03bd7a427fb6a2
-      with:
-        vcpkgDirectory: /opt/artifacts/vcpkg
-        vcpkgGitCommitId: ${{ env.VCPKG_COMMIT_ID }}
-        doNotCache: false
+      shell: bash
+      env:
+        EDGEDESK_VCPKG_ROOT: /opt/artifacts/vcpkg
+      run: |
+        python edgedesk/vcpkg.py bootstrap
     - name: Install vcpkg dependencies
       if: matrix.job.arch == 'x86_64' || env.UPLOAD_ARTIFACT == 'true'
       run: |

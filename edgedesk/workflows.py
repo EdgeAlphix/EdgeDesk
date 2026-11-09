@@ -23,6 +23,16 @@ original['permissions'] = {'contents': 'read'}
 original['on']['workflow_call']['inputs'].update({'source-ref': {'required': True, 'type':'string'}, 'version':{'required':True,'type':'string'}})
 original['env']['VERSION'] = '${{ inputs.version }}'
 original['env']['VCPKG_CMAKE_VERSION'] = '4.3.0'
+release_asset_checksums = {
+    'windows-x64-release.zip': 'ede341b0015c745ecc67a5de504e424258f65fd976ac482a094b4c7bbab15fbea9e5a2f51b0869c306ec28c46ae83f578764c721bd179899736fad41ef36ad70',
+    'usbmmidd_v2.zip': '2013089cce010f2f1be46259722813cf51150d2f9a66d46d6be522a656dc4d0ede331323b24725b40ce803df19ec5a5052472b887fb2ed45173a7958cd24320d',
+    'apple-codesign-0.22.0-macos-universal.tar.gz': 'sha256:7031ee75ca2a55c558071701078517c05d959e012dd87833ac6b4a23c5ff52b9',
+}
+def release_download(match):
+    url, name = match.groups()
+    checksum = release_asset_checksums.get(name)
+    return f'python edgedesk/vcpkg.py download {url} {name}' + (f' {checksum}' if checksum else '')
+
 for job in original['jobs']['build-for-macOS']['strategy']['matrix']['job']:
     if job['os'] == 'macos-14':
         job['os'] = 'macos-15'
@@ -54,6 +64,7 @@ for jobname, job in original['jobs'].items():
         if use.startswith('actions/checkout@'):
             step.setdefault('with',{})['ref'] = '${{ inputs.source-ref }}'
         if 'run' in step:
+            step['run'] = re.sub(r'Invoke-WebRequest -Uri (https://github\.com/\S+/releases/download/\S+) -OutFile (\S+)', release_download, step['run'])
             step['run'] = step['run'].replace('RustDesk.app', 'EdgeDesk.app').replace('com.rustdesk.RustDesk', 'com.edgealphix.desk').replace('for name in rustdesk*??.rpm', 'for name in edgedesk*??.rpm')
             step['run'] = step['run'].replace('python preprocess.py --arp -d ../../rustdesk', 'Rename-Item ../../rustdesk/rustdesk.exe EdgeDesk.exe\npython preprocess.py --arp --app-name EdgeDesk --manufacturer "International Computing Group, LLC" -d ../../rustdesk')
         if use.startswith('softprops/action-gh-release@'):
@@ -89,6 +100,11 @@ for job in original['jobs'].values():
     steps = job.get('steps', [])
     index = next((i for i, step in enumerate(steps) if step.get('name') == 'Setup vcpkg with Github Actions binary cache'), None)
     if index is not None:
+        setup = steps[index]
+        directory = setup.pop('with').get('vcpkgDirectory', '${{ github.workspace }}/vcpkg')
+        setup.pop('uses')
+        setup.update({'shell': 'bash', 'env': {'EDGEDESK_VCPKG_ROOT': directory},
+                      'run': 'python edgedesk/vcpkg.py bootstrap\n'})
         steps.insert(index, {
             'name': 'Use dependency baseline from release source',
             'shell': 'bash',
@@ -99,6 +115,10 @@ linux_build["with"]["install"] = linux_build["with"]["install"].replace("libva-d
 linux_build["with"]["run"] = linux_build["with"]["run"].replace("for name in rustdesk*??.rpm", "for name in edgedesk*??.rpm")
 linux_build["with"]["run"] = linux_build["with"]["run"].replace("python3 ./build.py --flutter --skip-cargo", 'python3 ./build.py --flutter --skip-cargo\n          binary=$(find /workspace/flutter/build/linux -path "*/release/bundle/edgedesk" -type f -print -quit)\n          test -n "$binary"\n          "$binary" --version | grep -F "${{ env.VERSION }}"')
 mac_steps = original["jobs"]["build-for-macOS"]["steps"]
+notarize = next(step for step in mac_steps if step.get('name') == 'Install rcodesign tool')
+notarize['run'] = re.sub(r'wget (https://github\.com/\S+/releases/download/\S+/(\S+))',
+                        lambda match: release_download(match).replace('edgedesk/vcpkg.py', '"$GITHUB_WORKSPACE/edgedesk/vcpkg.py"'),
+                        notarize['run'])
 mac_check = next(step for step in mac_steps if step.get("name") == "Verify macOS application identity and executable")
 mac_steps.remove(mac_check)
 index = next(i for i, step in enumerate(mac_steps) if step.get("name") == "Build rustdesk")
