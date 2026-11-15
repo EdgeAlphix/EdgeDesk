@@ -66,7 +66,7 @@ for jobname, job in original['jobs'].items():
         if 'run' in step:
             step['run'] = re.sub(r'Invoke-WebRequest -Uri (https://github\.com/\S+/releases/download/\S+) -OutFile (\S+)', release_download, step['run'])
             step['run'] = step['run'].replace('RustDesk.app', 'EdgeDesk.app').replace('com.rustdesk.RustDesk', 'com.edgealphix.desk').replace('for name in rustdesk*??.rpm', 'for name in edgedesk*??.rpm')
-            step['run'] = step['run'].replace('python preprocess.py --arp -d ../../rustdesk', 'Rename-Item ../../rustdesk/rustdesk.exe EdgeDesk.exe\npython preprocess.py --arp --app-name EdgeDesk --manufacturer "International Computing Group, LLC" -d ../../rustdesk')
+            step['run'] = step['run'].replace('python preprocess.py --arp -d ../../rustdesk', 'python preprocess.py --arp --app-name EdgeDesk --manufacturer "International Computing Group, LLC" -d ../../rustdesk')
         if use.startswith('softprops/action-gh-release@'):
             files = step['with'].get('files','').replace('rustdesk-*.rpm', 'edgedesk-*.rpm').replace('res/rustdesk-', 'res/edgedesk-').replace('./appimage/rustdesk-', './appimage/edgedesk-')
             # Publish only in the final all-platform job, after corresponding source is ready.
@@ -80,7 +80,24 @@ for step in universal['steps']:
         values = step.get('with',{})
         if 'name' in values:
             values['name'] = values['name'].replace('${{ matrix.job.arch }}','universal')
-windows_check = {"name": "Verify Windows executable starts", "shell": "pwsh", "run": '$process = Start-Process -FilePath (Resolve-Path ./rustdesk/rustdesk.exe) -ArgumentList "--version" -Wait -PassThru -RedirectStandardOutput version.txt -RedirectStandardError version-error.txt\n$version = Get-Content version.txt -Raw\nif ($process.ExitCode -ne 0 -or "$version" -notmatch [regex]::Escape("${{ env.VERSION }}")) { Get-Content version-error.txt; throw "EdgeDesk executable failed to report its version: $version" }\n'}
+windows_steps = original['jobs']['build-for-windows-flutter']['steps']
+portable = next(step for step in windows_steps if step.get('name') == 'Build self-extracted executable')
+portable['run'] = portable['run'].replace('../../rustdesk/rustdesk.exe', '../../rustdesk/EdgeDesk.exe')
+windows_check = {"name": "Verify Windows executable starts", "shell": "pwsh", "run": 'Rename-Item ./rustdesk/rustdesk.exe EdgeDesk.exe\n$process = Start-Process -FilePath (Resolve-Path ./rustdesk/EdgeDesk.exe) -ArgumentList "--version" -Wait -PassThru -RedirectStandardOutput version.txt -RedirectStandardError version-error.txt\n$version = Get-Content version.txt -Raw\nif ($process.ExitCode -ne 0 -or "$version" -notmatch [regex]::Escape("${{ env.VERSION }}")) { Get-Content version-error.txt; throw "EdgeDesk executable failed to report its version: $version" }\n'}
+index = windows_steps.index(portable)
+windows_steps.insert(index + 1, {
+    'name': 'Install and launch the packaged Windows executable',
+    'if': portable['if'],
+    'shell': 'pwsh',
+    'run': """$installer = Resolve-Path './SignOutput/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.exe'
+$installed = Join-Path $env:ProgramFiles 'EdgeDesk/EdgeDesk.exe'
+Start-Process -FilePath $installer -ArgumentList '--silent-install', 'printer=0' -Wait
+if (-not (Test-Path $installed -PathType Leaf)) { throw "Installer did not create $installed" }
+$process = Start-Process -FilePath $installed -ArgumentList '--version' -Wait -PassThru -RedirectStandardOutput installed-version.txt
+$version = Get-Content installed-version.txt -Raw
+if ($process.ExitCode -ne 0 -or "$version" -notmatch [regex]::Escape("${{ env.VERSION }}")) { throw "Installed executable reported: $version" }
+""",
+})
 checks = {'build-for-windows-flutter': windows_check, 'build-for-macOS': {'name': 'Verify macOS application identity and executable', 'shell': 'bash', 'run': 'app=flutter/build/macos/Build/Products/Release/EdgeDesk.app\ntest "$(/usr/libexec/PlistBuddy -c \'Print CFBundleIdentifier\' "$app/Contents/Info.plist")" = com.edgealphix.desk\n"$app/Contents/MacOS/EdgeDesk" --version | grep -F "${{ env.VERSION }}"\n'}}
 llvm = next(step for step in original['jobs']['build-for-windows-flutter']['steps'] if step.get('name') == 'Install LLVM and Clang')
 llvm.pop('uses')

@@ -289,7 +289,8 @@ jobs:
     - name: Verify Windows executable starts
       shell: pwsh
       run: |
-        $process = Start-Process -FilePath (Resolve-Path ./rustdesk/rustdesk.exe) -ArgumentList "--version" -Wait -PassThru -RedirectStandardOutput version.txt -RedirectStandardError version-error.txt
+        Rename-Item ./rustdesk/rustdesk.exe EdgeDesk.exe
+        $process = Start-Process -FilePath (Resolve-Path ./rustdesk/EdgeDesk.exe) -ArgumentList "--version" -Wait -PassThru -RedirectStandardOutput version.txt -RedirectStandardError version-error.txt
         $version = Get-Content version.txt -Raw
         if ($process.ExitCode -ne 0 -or "$version" -notmatch [regex]::Escape("${{ env.VERSION }}")) { Get-Content version-error.txt; throw "EdgeDesk executable failed to report its version: $version" }
     - name: find Runner.res
@@ -330,17 +331,27 @@ jobs:
         sed -i '/dpiAware/d' res/manifest.xml
         pushd ./libs/portable
         pip3 install -r requirements.txt
-        python3 ./generate.py -f ../../rustdesk/ -o . -e ../../rustdesk/rustdesk.exe
+        python3 ./generate.py -f ../../rustdesk/ -o . -e ../../rustdesk/EdgeDesk.exe
         popd
         mkdir -p ./SignOutput
         mv ./target/release/rustdesk-portable-packer.exe ./SignOutput/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.exe
+    - name: Install and launch the packaged Windows executable
+      if: env.UPLOAD_ARTIFACT == 'true'
+      shell: pwsh
+      run: |
+        $installer = Resolve-Path './SignOutput/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.exe'
+        $installed = Join-Path $env:ProgramFiles 'EdgeDesk/EdgeDesk.exe'
+        Start-Process -FilePath $installer -ArgumentList '--silent-install', 'printer=0' -Wait
+        if (-not (Test-Path $installed -PathType Leaf)) { throw "Installer did not create $installed" }
+        $process = Start-Process -FilePath $installed -ArgumentList '--version' -Wait -PassThru -RedirectStandardOutput installed-version.txt
+        $version = Get-Content installed-version.txt -Raw
+        if ($process.ExitCode -ne 0 -or "$version" -notmatch [regex]::Escape("${{ env.VERSION }}")) { throw "Installed executable reported: $version" }
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce
     - name: Build msi
       if: env.UPLOAD_ARTIFACT == 'true'
       run: |
         pushd ./res/msi
-        Rename-Item ../../rustdesk/rustdesk.exe EdgeDesk.exe
         python preprocess.py --arp --app-name EdgeDesk --manufacturer "International Computing Group, LLC" -d ../../rustdesk
         nuget restore msi.sln
         $msiPlatform = if ('${{ matrix.job.arch }}' -eq 'aarch64') { 'ARM64' } else { 'x64' }
