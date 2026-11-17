@@ -118,16 +118,18 @@ extern "C" bool MacCheckAdminAuthorization() {
 
 // https://gist.github.com/briankc/025415e25900750f402235dbf1b74e42
 extern "C" float BackingScaleFactor(uint32_t display) {
-    NSArray<NSScreen *> *screens = [NSScreen screens];
-    for (NSScreen *screen in screens) {
-        NSDictionary *deviceDescription = [screen deviceDescription];
-        NSNumber *screenNumber = [deviceDescription objectForKey:@"NSScreenNumber"];
-        CGDirectDisplayID screenDisplayID = [screenNumber unsignedIntValue];
-        if (screenDisplayID == display) {
-            return [screen backingScaleFactor];
+    @autoreleasepool {
+        NSArray<NSScreen *> *screens = [NSScreen screens];
+        for (NSScreen *screen in screens) {
+            NSDictionary *deviceDescription = [screen deviceDescription];
+            NSNumber *screenNumber = [deviceDescription objectForKey:@"NSScreenNumber"];
+            CGDirectDisplayID screenDisplayID = [screenNumber unsignedIntValue];
+            if (screenDisplayID == display) {
+                return [screen backingScaleFactor];
+            }
         }
+        return 1;
     }
-    return 1;
 }
 
 // https://github.com/jhford/screenresolution/blob/master/cg_utils.c
@@ -800,6 +802,22 @@ static bool TurnOffPrivacyModeInternal() {
 }
 
 extern "C" bool MacSetPrivacyMode(bool on) {
+    if (!on && ![NSThread isMainThread]) {
+        {
+            std::lock_guard<std::mutex> lock(g_privacyModeMutex);
+            if (!g_privacyModeActive) {
+                return true;
+            }
+        }
+        // The blackout monitor, the reconfiguration callback and the deferred shutdown lock
+        // g_privacyModeMutex on the main thread, so the teardown must not wait for the main
+        // queue while holding the mutex. Turn privacy mode off on the main queue instead.
+        __block bool result = true;
+        dispatch_sync(dispatch_get_main_queue(), ^{
+            result = MacSetPrivacyMode(false);
+        });
+        return result;
+    }
     std::lock_guard<std::mutex> lock(g_privacyModeMutex);
     if (on) {
         // Already in privacy mode
