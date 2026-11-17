@@ -89,11 +89,20 @@ windows_steps.insert(index + 1, {
     'name': 'Install and launch the packaged Windows executable',
     'if': portable['if'],
     'shell': 'pwsh',
+    'timeout-minutes': 5,
     'run': """$installer = Resolve-Path './SignOutput/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.exe'
 $installed = Join-Path $env:ProgramFiles 'EdgeDesk/EdgeDesk.exe'
-Start-Process -FilePath $installer -ArgumentList '--silent-install', 'printer=0' -Wait
-if (-not (Test-Path $installed -PathType Leaf)) { throw "Installer did not create $installed" }
-$process = Start-Process -FilePath $installed -ArgumentList '--version' -Wait -PassThru -RedirectStandardOutput installed-version.txt
+# The installer starts a persistent tray process, which Start-Process -Wait would also wait for.
+Start-Process -FilePath $installer -ArgumentList '--silent-install', 'printer=0'
+$deadline = [DateTime]::UtcNow.AddMinutes(2)
+do {
+  $service = Get-Service -Name EdgeDesk -ErrorAction SilentlyContinue
+  if ((Test-Path $installed -PathType Leaf) -and $service.Status -eq 'Running') { break }
+  if ([DateTime]::UtcNow -ge $deadline) { throw "Installation timed out: executable=$(Test-Path $installed), service=$($service.Status)" }
+  Start-Sleep -Seconds 2
+} while ($true)
+$process = Start-Process -FilePath $installed -ArgumentList '--version' -PassThru -RedirectStandardOutput installed-version.txt
+if (-not $process.WaitForExit(30000)) { throw 'Installed executable timed out reporting its version' }
 $version = Get-Content installed-version.txt -Raw
 if ($process.ExitCode -ne 0 -or "$version" -notmatch [regex]::Escape("${{ env.VERSION }}")) { throw "Installed executable reported: $version" }
 """,
